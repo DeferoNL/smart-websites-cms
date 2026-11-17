@@ -1,0 +1,6 @@
+/* Only explicitly opted-in content gets contrast overrides. Buttons keep their colors. */
+section[data-cms-block-contrast] :is(h1,h2,h3,h4,h5,h6,p,[class*="heading-"],[class*="text-"]) {
+  color: inherit !important;
+}
+section[data-cms-block-contrast] :is(div,article,span,strong,em) { color: inherit; }
+[data-cms-background-dialog] { max-height: calc(100dvh - 32px); overflow-y: auto; }

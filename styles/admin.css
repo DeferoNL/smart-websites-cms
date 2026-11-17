@@ -1,0 +1,121 @@
+/* CMS edit mode outlines */
+[data-cms-editing] [data-cms-kind] { outline: 1px dashed var(--ring); outline-offset: 2px; cursor: text; }
+[data-cms-editing] [data-cms-kind="image"] { cursor: pointer; }
+[data-cms-editing] [data-cms-kind]:hover, [data-cms-editing] [data-cms-kind]:focus { outline: 2px solid var(--ring); }
+[data-cms-editing] [data-cms-kind="background"], [data-cms-editing] [data-cms-kind="background"]:hover { outline: none; cursor: auto; }
+
+/* Temporarily switched-off blocks: hidden for visitors and in preview, dimmed while editing. */
+html:not([data-cms-editing]) [data-cms-off] { display: none !important; }
+html[data-cms-editing] [data-cms-off] { position: relative; opacity: .45; filter: grayscale(1); outline: 3px dashed var(--destructive); outline-offset: -3px; }
+html[data-cms-editing] [data-cms-off]::before { content: "Uitgeschakeld — wordt niet gepubliceerd"; position: absolute; top: 12px; left: 12px; z-index: 5; padding: 4px 12px; border-radius: 9999px; background: var(--destructive); color: var(--destructive-foreground); font: 600 13px/1.4 system-ui, sans-serif; }
+
+/* Smart Websites admin: the original site stylesheet resets form controls, restore them here. */
+.sw-admin input:not([type="checkbox"]):not([type="file"]), .sw-admin textarea {
+  background-color: var(--muted) !important; border: 1px solid var(--border) !important; color: var(--foreground) !important;
+}
+.sw-admin button.bg-primary { background-color: var(--primary) !important; color: var(--primary-foreground) !important; }
+/* Keep CMS brand buttons readable even when a client stylesheet resets buttons. */
+:is(.sw-admin, [data-cms-toolbar]) :is(button, a[data-slot="button"]).bg-cms-action { background-color: var(--cms-blue) !important; color: var(--cms-brand-foreground) !important; }
+:is(.sw-admin, [data-cms-toolbar]) :is(button, a[data-slot="button"]).bg-cms-brand { background-color: var(--cms-brand) !important; color: var(--cms-brand-foreground) !important; }
+
+/* Smart Websites dashboard: rounded controls, separated tabs, visible checkboxes. */
+.sw-admin, [data-cms-toolbar] { --radius: 0.625rem; }
+.sw-admin button, .sw-admin a[data-slot="button"], [data-cms-toolbar] button { border-radius: 0.5rem !important; }
+.sw-admin input:not([type="checkbox"]):not([type="file"]), .sw-admin textarea, .sw-admin select { border-radius: 0.5rem !important; }
+.sw-admin [role="tablist"] { display: inline-flex; flex-wrap: wrap; gap: 0.5rem; height: auto; background: transparent; padding: 0; }
+.sw-admin [role="tablist"] > [role="tab"] { border: 0; border-bottom: 2px solid transparent; border-radius: 0 !important; padding: 0.65rem 0.85rem; background: transparent; color: var(--muted-foreground); box-shadow: none; }
+.sw-admin [role="tablist"] > [role="tab"][data-state="active"] { background: transparent !important; color: var(--cms-brand) !important; border-bottom-color: var(--cms-brand); }
+.sw-admin button[role="checkbox"] { width: 1.25rem; height: 1.25rem; border: 2px solid var(--foreground) !important; border-radius: 0.25rem !important; background: transparent; }
+.sw-admin button[role="checkbox"][data-state="checked"] { background: var(--primary) !important; border-color: var(--primary) !important; color: var(--primary-foreground); }
+.sw-admin button.bg-success, [data-cms-toolbar] button.bg-success, [data-cms-blockbar].bg-success, [data-cms-blockbar] button.bg-success { background-color: var(--primary) !important; color: var(--primary-foreground) !important; border-radius: 0.5rem; }
+/* Breathing room: at least 7px extra horizontal space in buttons and inside fields. */
+.sw-admin button:not([role="checkbox"]):not([role="tab"]):not(.size-icon), [data-cms-toolbar] button:not([role="checkbox"]):not(.size-icon) { padding-left: calc(0.75rem + 7px); padding-right: calc(0.75rem + 7px); }
+/* Icon-only buttons never get breathing room: it would squeeze the icon to 0px. */
+.sw-admin button.size-icon, [data-cms-toolbar] button.size-icon { padding-left: 0 !important; padding-right: 0 !important; }
+.sw-admin button > svg, [data-cms-toolbar] button > svg { flex-shrink: 0; }
+.sw-admin input:not([type="checkbox"]):not([type="file"]), .sw-admin textarea, .sw-admin select { padding-left: calc(0.75rem + 7px) !important; padding-right: calc(0.75rem + 7px) !important; }
+.sw-admin .sw-choice { background: var(--background) !important; color: var(--foreground) !important; border: 1px solid var(--foreground) !important; }
+.sw-admin .sw-choice[data-active="true"] { background: var(--sw-blue) !important; color: var(--sw-blue-foreground) !important; border-color: var(--sw-blue) !important; }
+.sw-admin { --sw-blue: var(--cms-brand); --sw-blue-foreground: var(--cms-brand-foreground); }
+
+/* CMS-only themes: never change the client's website colors. Portals share these tokens. */
+:root { --cms-scrim: oklch(0 0 0 / 65%); --cms-brand: oklch(0.7 0.16 265); --cms-brand-foreground: oklch(1 0 0); }
+:is(.sw-admin, [data-cms-toolbar], [data-cms-blockbar], [role="dialog"], [role="alertdialog"], [data-radix-popper-content-wrapper], [data-sonner-toaster]) {
+  --background: oklch(0.185 0.007 265);
+  --foreground: oklch(0.96 0.003 265);
+  --card: oklch(0.225 0.008 265);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.94 0.004 265);
+  --primary-foreground: oklch(0.2 0.007 265);
+  --secondary: oklch(0.28 0.008 265);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--secondary);
+  --muted-foreground: oklch(0.72 0.012 265);
+  --accent: var(--secondary);
+  --accent-foreground: var(--foreground);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: var(--cms-brand);
+  --success: oklch(0.76 0.115 165);
+  --success-foreground: oklch(0.18 0.015 165);
+  --unpublished: var(--cms-brand);
+}
+html[data-cms-theme="light"] { --cms-brand: oklch(0.51 0.21 265); }
+html[data-cms-theme="light"] :is(.sw-admin, [data-cms-toolbar], [data-cms-blockbar], [role="dialog"], [role="alertdialog"], [data-radix-popper-content-wrapper], [data-sonner-toaster]) {
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.2 0.015 260);
+  --card: oklch(0.96 0.005 260);
+  --primary: oklch(0.28 0.025 260);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.93 0.006 260);
+  --muted-foreground: oklch(0.46 0.02 260);
+  --border: oklch(0.84 0.009 260);
+  --input: var(--border);
+  --ring: oklch(0.55 0.2 255);
+  --success: oklch(0.46 0.1 165);
+  --success-foreground: oklch(1 0 0);
+}
+html[data-cms-theme="light"] .sw-logo { filter: brightness(0); }
+/* A single overlay stack sits above even the block-insertion buttons. */
+.cms-dialog-overlay { z-index: 2147483647; background: var(--cms-scrim); }
+.cms-dialog-content { z-index: 2147483647; color: var(--foreground); }
+[data-radix-popper-content-wrapper] { z-index: 2147483647 !important; }
+html:has([role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]) :is([data-cms-toolbar], [data-cms-blockbar]):not([role="dialog"] *, [role="dialog"], [role="alertdialog"] *, [role="alertdialog"]) { visibility: hidden; }
+
+/* Blue CMS action button (e.g. "Andere foto kiezen"). */
+:root { --cms-blue: oklch(0.51 0.21 265); --cms-blue-hover: oklch(0.45 0.19 265); --cms-blue-foreground: oklch(1 0 0); }
+.cms-btn-blue { background: var(--cms-blue); color: var(--cms-blue-foreground); border: 0; border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 600; line-height: 1.4; cursor: pointer; }
+.cms-btn-blue:hover { background: var(--cms-blue-hover); }
+/* Only the block-library category buttons: protect against client control resets. */
+[data-cms-library-tabs] {
+  --cms-library-tab-background: oklch(0.92 0.004 265);
+  --cms-library-tab-foreground: oklch(0.24 0.008 265);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+[data-cms-library-tabs] > button {
+  background-color: var(--cms-library-tab-background) !important;
+  color: var(--cms-library-tab-foreground) !important;
+  border: 0 !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 1rem !important;
+  min-height: 2.25rem;
+  height: auto;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+[data-cms-library-tabs] > button[aria-pressed="true"] {
+  background-color: var(--cms-blue) !important;
+  color: var(--cms-blue-foreground) !important;
+}
+[data-cms-library-tabs] > button:hover { filter: brightness(0.96); }
+.sw-admin { font-family: "IBM Plex Sans", system-ui, sans-serif; letter-spacing: 0; }
+.sw-admin header { border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
+.sw-page-settings [role="tabpanel"] { background: transparent; border: 0; border-radius: 0; padding: 1.25rem 0; }
+.cms-status { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
+.cms-status-ok { color: var(--success); background: color-mix(in oklch, var(--success) 12%, transparent); }
+.cms-status-attention { color: var(--destructive); background: color-mix(in oklch, var(--destructive) 12%, transparent); }

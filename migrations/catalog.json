@@ -1,0 +1,90 @@
+{
+  "version": "3.0.1",
+  "execution": "manual-reviewed-only",
+  "migrations": [
+    {
+      "file": "migrations/0000_migration.sql",
+      "sha256": "f172c711d752f0f51da7906b722e28d60473e48954aa16b2c3208fe1c034dbe8"
+    },
+    {
+      "file": "migrations/0001_page_drafts_and_publish.sql",
+      "sha256": "0e310a1937ddb32288d7db1d678c8d013e19059e4d3105f4f47af30175b584fe"
+    },
+    {
+      "file": "migrations/0002_smart_websites_cms.sql",
+      "sha256": "4e577151b75db127b8e1c3acdc773ff626d426188eeea206640fbe5a5a4d3350"
+    },
+    {
+      "file": "migrations/0003_restore_cms_and_optional_languages.sql",
+      "sha256": "b5642d10eee357af1e276ee61e3679d9b6e32913efe7f9f77e89ed87e49fe39a"
+    },
+    {
+      "file": "migrations/0004_restore_existing_cms_functions.sql",
+      "sha256": "2cf65fe05b918ebadd8b3917e936f388561caa7c452b247f451bbc9924bd8f08"
+    },
+    {
+      "file": "migrations/0005_cms_media_storage_policies.sql",
+      "sha256": "a207699e35bf882d9aff6d78d309b4e3a31ea95599c04913501afef8a49453aa"
+    },
+    {
+      "file": "migrations/0006_block_library_index.sql",
+      "sha256": "f9c703b4d70cc80e988c7baafe6bb71b405a39e0eb49a05f1cdb2f6ab581adc2"
+    },
+    {
+      "file": "migrations/0007_seo_ai_assistant.sql",
+      "sha256": "77d04780f99fa17c2f60bc3573a32b87124af19f663976242ee44bfb2b8e1d8a"
+    },
+    {
+      "file": "migrations/0008_backup_includes_custom_pages.sql",
+      "sha256": "a88844554077a85934fdc6f4275808f2fee5543e61310407515e7f577554bb9a"
+    },
+    {
+      "file": "migrations/0009_assignable_admin_permissions.sql",
+      "sha256": "702b9d7a50817c7c85b14254ddadcc958074175a6d868add7cb80597b9186f02"
+    },
+    {
+      "file": "migrations/0010_social_links_and_form_submissions.sql",
+      "sha256": "daa10ae5ac343d50dd1d34ec23235d79a54f7c3e5c2f9913cc4ba17f9c05a6cd"
+    },
+    {
+      "file": "migrations/0011_site_look_menu_icon.sql",
+      "sha256": "7b97a3034826ef525a7d78252471d5623a0921946ef07fb578a39c57c6856b22"
+    },
+    {
+      "file": "migrations/0012_secure_initial_cms_setup.sql",
+      "sha256": "4edebcff6e9c3e5f7a32d36a2d621c79014549d05ac26087e70f8a8a45c282eb"
+    },
+    {
+      "file": "migrations/0013_single_cms_roles_admin_control.sql",
+      "sha256": "3948a445485ceac5be2acde50bd480a5b6ec59210ee630523ff27acb3b00a2f3"
+    },
+    {
+      "file": "migrations/0014_role_scoped_forms_and_backup_reads.sql",
+      "sha256": "9f9285cf0c4d87051201d9ef24a6dcf0cd26e10db0efe5fa22df4fd137cae4a8"
+    },
+    {
+      "file": "migrations/0015_webbuilder_button_colors_backup_restore.sql",
+      "sha256": "562670faf37a204b8da9d6bd6ad0dea48d6fca1c3b9fee9ebac7021d843412bd"
+    },
+    {
+      "file": "migrations/0016_restrict_selected_cms_public_access.sql",
+      "sha256": "775b537e69e8cc7619cd2e062499e3dd287f94fabdaea70ffbb83454c794e4b9"
+    },
+    {
+      "file": "migrations/0017_limit_media_helpers_to_server.sql",
+      "sha256": "60225609d241a5dcc4f2c8e795927ff472805651504fcc4cc977677a97a3435d"
+    },
+    {
+      "file": "migrations/0018_cms_client_sites.sql",
+      "sha256": "36c89d94194cae9d3a63ff82a01a4d9890a3badd1445434aeac0e950aabceac0"
+    },
+    {
+      "file": "migrations/0019_remove_test_client_site.sql",
+      "sha256": "202a78033e9fc69533f5c20e8c0e3718dad61ecac8a5330d6711ff247fd843b4"
+    },
+    {
+      "file": "migrations/0020_client_site_stats.sql",
+      "sha256": "ebbe550213a44c86e970588a0a04113a8a9ed493b233716e99383bb574d031c1"
+    }
+  ]
+}

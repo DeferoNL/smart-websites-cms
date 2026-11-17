@@ -1,0 +1,550 @@
+-- The content of this migration cannot be applied: editor enum value is used before commit; replaced by additive CMS recovery.
+-- -- Replace the earlier generic CMS with the Smart Websites CMS (same as b-mservice.nl).
+-- drop policy if exists "public read cms media" on storage.objects;
+-- drop policy if exists "staff upload cms media" on storage.objects;
+-- drop policy if exists "staff delete cms media" on storage.objects;
+-- drop trigger if exists on_auth_user_created on auth.users;
+-- drop table if exists public.blocks cascade;
+-- drop table if exists public.pages cascade;
+-- drop table if exists public.media cascade;
+-- drop table if exists public.redirects cascade;
+-- drop table if exists public.site_settings cascade;
+-- drop table if exists public.user_roles cascade;
+-- drop table if exists public.profiles cascade;
+-- drop function if exists public.publish_page(uuid) cascade;
+-- drop function if exists public.handle_new_user() cascade;
+-- drop function if exists public.is_staff(uuid) cascade;
+-- drop function if exists public.has_role(uuid, app_role) cascade;
+-- drop type if exists public.page_status cascade;
+-- drop type if exists public.app_role cascade;
+-- 
+-- -- SMART-WEBSITES CMS: complete database base (generated from drizzle/migrations). Apply as one migration in a new project.
+-- 
+-- -- ===== 0000_migration.sql =====
+-- create type public.app_role as enum ('admin');
+-- create table public.user_roles (
+--   id uuid primary key default gen_random_uuid(),
+--   user_id uuid references auth.users(id) on delete cascade not null,
+--   role app_role not null,
+--   unique (user_id, role)
+-- );
+-- grant select on public.user_roles to authenticated;
+-- grant all on public.user_roles to service_role;
+-- alter table public.user_roles enable row level security;
+-- create policy "Users read own roles" on public.user_roles for select to authenticated using (user_id = auth.uid());
+-- 
+-- create or replace function public.has_role(_user_id uuid, _role app_role)
+-- returns boolean language sql stable security definer set search_path = public
+-- as $$ select exists (select 1 from public.user_roles where user_id = _user_id and role = _role) $$;
+-- 
+-- create or replace function public.assign_first_admin()
+-- returns trigger language plpgsql security definer set search_path = public
+-- as $$
+-- begin
+--   if not exists (select 1 from public.user_roles where role = 'admin') then
+--     insert into public.user_roles (user_id, role) values (new.id, 'admin');
+--   end if;
+--   return new;
+-- end $$;
+-- create trigger on_auth_user_created_admin after insert on auth.users
+-- for each row execute function public.assign_first_admin();
+-- 
+-- create table public.page_seo (
+--   path text primary key,
+--   title text,
+--   description text,
+--   noindex boolean not null default false,
+--   nofollow boolean not null default false,
+--   updated_at timestamptz not null default now()
+-- );
+-- grant select on public.page_seo to anon, authenticated;
+-- grant insert, update, delete on public.page_seo to authenticated;
+-- grant all on public.page_seo to service_role;
+-- alter table public.page_seo enable row level security;
+-- create policy "Anyone reads SEO" on public.page_seo for select to anon, authenticated using (true);
+-- create policy "Admins insert SEO" on public.page_seo for insert to authenticated with check (public.has_role(auth.uid(), 'admin'));
+-- create policy "Admins update SEO" on public.page_seo for update to authenticated using (public.has_role(auth.uid(), 'admin')) with check (public.has_role(auth.uid(), 'admin'));
+-- create policy "Admins delete SEO" on public.page_seo for delete to authenticated using (public.has_role(auth.uid(), 'admin'));
+-- -- ===== 0001_cms_content_media.sql =====
+-- ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'editor';
+-- 
+-- CREATE OR REPLACE FUNCTION public.can_edit(_user_id uuid)
+-- RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+--   SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role::text IN ('admin','editor'))
+-- $$;
+-- 
+-- CREATE TABLE public.page_content (
+--   path text NOT NULL,
+--   state text NOT NULL CHECK (state IN ('draft','published')),
+--   data jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   updated_at timestamptz NOT NULL DEFAULT now(),
+--   updated_by uuid,
+--   PRIMARY KEY (path, state)
+-- );
+-- GRANT SELECT ON public.page_content TO anon;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON public.page_content TO authenticated;
+-- GRANT ALL ON public.page_content TO service_role;
+-- ALTER TABLE public.page_content ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Anyone reads published content" ON public.page_content FOR SELECT TO anon, authenticated USING (state = 'published');
+-- CREATE POLICY "Editors read drafts" ON public.page_content FOR SELECT TO authenticated USING (public.can_edit(auth.uid()));
+-- CREATE POLICY "Editors insert content" ON public.page_content FOR INSERT TO authenticated WITH CHECK (public.can_edit(auth.uid()));
+-- CREATE POLICY "Editors update content" ON public.page_content FOR UPDATE TO authenticated USING (public.can_edit(auth.uid())) WITH CHECK (public.can_edit(auth.uid()));
+-- CREATE POLICY "Admins delete content" ON public.page_content FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+-- 
+-- CREATE TABLE public.media (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   storage_path text NOT NULL,
+--   url text NOT NULL,
+--   kind text NOT NULL DEFAULT 'image',
+--   name text,
+--   created_by uuid,
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON public.media TO authenticated;
+-- GRANT ALL ON public.media TO service_role;
+-- ALTER TABLE public.media ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Editors read media" ON public.media FOR SELECT TO authenticated USING (public.can_edit(auth.uid()));
+-- CREATE POLICY "Editors add media" ON public.media FOR INSERT TO authenticated WITH CHECK (public.can_edit(auth.uid()));
+-- CREATE POLICY "Admins delete media" ON public.media FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+-- 
+-- CREATE POLICY "Public reads cms media" ON storage.objects FOR SELECT USING (bucket_id = 'cms-media');
+-- CREATE POLICY "Editors upload cms media" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'cms-media' AND public.can_edit(auth.uid()));
+-- CREATE POLICY "Admins delete cms media" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'cms-media' AND public.has_role(auth.uid(), 'admin'));
+-- -- ===== 0002_page_settings.sql =====
+-- CREATE TABLE public.page_settings (
+--   path text PRIMARY KEY,
+--   name_nl text,
+--   name_en text,
+--   hidden_in_menu boolean NOT NULL DEFAULT false,
+--   updated_at timestamptz NOT NULL DEFAULT now(),
+--   updated_by uuid
+-- );
+-- GRANT SELECT ON public.page_settings TO anon;
+-- GRANT SELECT, INSERT, UPDATE ON public.page_settings TO authenticated;
+-- GRANT ALL ON public.page_settings TO service_role;
+-- ALTER TABLE public.page_settings ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Anyone reads page settings" ON public.page_settings FOR SELECT TO anon, authenticated USING (true);
+-- CREATE POLICY "Editors insert page settings" ON public.page_settings FOR INSERT TO authenticated WITH CHECK (public.can_edit(auth.uid()));
+-- CREATE POLICY "Editors update page settings" ON public.page_settings FOR UPDATE TO authenticated USING (public.can_edit(auth.uid())) WITH CHECK (public.can_edit(auth.uid()));
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON public.page_seo TO authenticated;
+-- GRANT SELECT ON public.page_seo TO anon;
+-- CREATE POLICY "Editors insert SEO" ON public.page_seo FOR INSERT TO authenticated WITH CHECK (public.can_edit(auth.uid()));
+-- CREATE POLICY "Editors update SEO" ON public.page_seo FOR UPDATE TO authenticated USING (public.can_edit(auth.uid())) WITH CHECK (public.can_edit(auth.uid()));
+-- -- ===== 0003_media_details.sql =====
+-- ALTER TABLE public.media ADD COLUMN IF NOT EXISTS alt text, ADD COLUMN IF NOT EXISTS size_bytes bigint, ADD COLUMN IF NOT EXISTS mime text;
+-- CREATE POLICY "Editors update media" ON public.media FOR UPDATE TO authenticated USING (public.can_edit(auth.uid())) WITH CHECK (public.can_edit(auth.uid()));
+-- -- ===== 0004_page_settings_tabs_backups.sql =====
+-- ALTER TABLE public.page_seo
+--   ADD COLUMN IF NOT EXISTS keywords text,
+--   ADD COLUMN IF NOT EXISTS canonical text,
+--   ADD COLUMN IF NOT EXISTS redirects text,
+--   ADD COLUMN IF NOT EXISTS og_title text,
+--   ADD COLUMN IF NOT EXISTS og_description text,
+--   ADD COLUMN IF NOT EXISTS og_image text;
+-- ALTER TABLE public.page_settings
+--   ADD COLUMN IF NOT EXISTS disabled boolean NOT NULL DEFAULT false,
+--   ADD COLUMN IF NOT EXISTS hide_in_search boolean NOT NULL DEFAULT false,
+--   ADD COLUMN IF NOT EXISTS encrypted_url boolean NOT NULL DEFAULT false,
+--   ADD COLUMN IF NOT EXISTS sort_order integer,
+--   ADD COLUMN IF NOT EXISTS parent_path text;
+-- 
+-- CREATE TABLE public.site_backups (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   created_by uuid,
+--   created_by_email text,
+--   data jsonb NOT NULL
+-- );
+-- GRANT SELECT ON public.site_backups TO authenticated;
+-- GRANT ALL ON public.site_backups TO service_role;
+-- ALTER TABLE public.site_backups ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Editors read backups" ON public.site_backups FOR SELECT TO authenticated USING (public.can_edit(auth.uid()));
+-- 
+-- CREATE OR REPLACE FUNCTION public.create_site_backup()
+-- RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- DECLARE new_id uuid;
+-- BEGIN
+--   IF NOT public.can_edit(auth.uid()) THEN RAISE EXCEPTION 'Geen rechten'; END IF;
+--   INSERT INTO public.site_backups (created_by, created_by_email, data)
+--   VALUES (auth.uid(), (SELECT email FROM auth.users WHERE id = auth.uid()), jsonb_build_object(
+--     'page_content', COALESCE((SELECT jsonb_agg(to_jsonb(c)) FROM public.page_content c), '[]'::jsonb),
+--     'page_seo', COALESCE((SELECT jsonb_agg(to_jsonb(s)) FROM public.page_seo s), '[]'::jsonb),
+--     'page_settings', COALESCE((SELECT jsonb_agg(to_jsonb(p)) FROM public.page_settings p), '[]'::jsonb)
+--   )) RETURNING id INTO new_id;
+--   DELETE FROM public.site_backups WHERE id IN (SELECT id FROM public.site_backups ORDER BY created_at DESC OFFSET 3);
+--   RETURN new_id;
+-- END $$;
+-- 
+-- CREATE OR REPLACE FUNCTION public.restore_site_backup(_id uuid)
+-- RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- DECLARE b jsonb;
+-- BEGIN
+--   IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'Alleen beheerders kunnen een back-up terugplaatsen'; END IF;
+--   SELECT data INTO b FROM public.site_backups WHERE id = _id;
+--   IF b IS NULL THEN RAISE EXCEPTION 'Back-up niet gevonden'; END IF;
+--   DELETE FROM public.page_content WHERE true;
+--   DELETE FROM public.page_seo WHERE true;
+--   DELETE FROM public.page_settings WHERE true;
+--   INSERT INTO public.page_content SELECT * FROM jsonb_populate_recordset(NULL::public.page_content, b->'page_content');
+--   INSERT INTO public.page_seo SELECT * FROM jsonb_populate_recordset(NULL::public.page_seo, b->'page_seo');
+--   INSERT INTO public.page_settings SELECT * FROM jsonb_populate_recordset(NULL::public.page_settings, b->'page_settings');
+-- END $$;
+-- 
+-- CREATE OR REPLACE FUNCTION public.publish_all_drafts()
+-- RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- DECLARE n integer;
+-- BEGIN
+--   IF NOT public.can_edit(auth.uid()) THEN RAISE EXCEPTION 'Geen rechten'; END IF;
+--   INSERT INTO public.page_content (path, state, data, updated_at, updated_by)
+--   SELECT path, 'published', data, now(), auth.uid() FROM public.page_content WHERE state = 'draft'
+--   ON CONFLICT (path, state) DO UPDATE SET data = EXCLUDED.data, updated_at = now(), updated_by = EXCLUDED.updated_by;
+--   GET DIAGNOSTICS n = ROW_COUNT;
+--   RETURN n;
+-- END $$;
+-- REVOKE EXECUTE ON FUNCTION public.create_site_backup() FROM anon, public;
+-- REVOKE EXECUTE ON FUNCTION public.restore_site_backup(uuid) FROM anon, public;
+-- REVOKE EXECUTE ON FUNCTION public.publish_all_drafts() FROM anon, public;
+-- GRANT EXECUTE ON FUNCTION public.create_site_backup() TO authenticated;
+-- GRANT EXECUTE ON FUNCTION public.restore_site_backup(uuid) TO authenticated;
+-- GRANT EXECUTE ON FUNCTION public.publish_all_drafts() TO authenticated;
+-- -- ===== 0005_page_deleted.sql =====
+-- ALTER TABLE public.page_settings ADD COLUMN IF NOT EXISTS deleted boolean NOT NULL DEFAULT false;
+-- 
+-- -- ===== 0006_page_deleted_apply.sql =====
+-- ALTER TABLE public.page_settings ADD COLUMN IF NOT EXISTS deleted boolean NOT NULL DEFAULT false;
+-- -- ===== 0007_site_settings.sql =====
+-- CREATE TABLE public.site_settings (
+--   id int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+--   dashboard_lang text NOT NULL DEFAULT 'nl',
+--   default_lang text NOT NULL DEFAULT 'nl',
+--   languages text[] NOT NULL DEFAULT ARRAY['nl','en'],
+--   auto_translate boolean NOT NULL DEFAULT true,
+--   updated_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- GRANT SELECT, INSERT, UPDATE ON public.site_settings TO authenticated;
+-- GRANT ALL ON public.site_settings TO service_role;
+-- ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Editors read settings" ON public.site_settings FOR SELECT TO authenticated USING (public.can_edit(auth.uid()));
+-- CREATE POLICY "Admins insert settings" ON public.site_settings FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'));
+-- CREATE POLICY "Admins update settings" ON public.site_settings FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+-- INSERT INTO public.site_settings (id) VALUES (1) ON CONFLICT DO NOTHING;
+-- -- ===== 0008_cms_roles_blocks.sql =====
+-- CREATE TABLE public.cms_roles (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name text NOT NULL,
+--   perms jsonb NOT NULL DEFAULT '{"text":true,"images":true,"blocks":false,"translate":false,"pages":false}'::jsonb,
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON public.cms_roles TO authenticated;
+-- GRANT ALL ON public.cms_roles TO service_role;
+-- ALTER TABLE public.cms_roles ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Editors read cms roles" ON public.cms_roles FOR SELECT TO authenticated USING (public.can_edit(auth.uid()));
+-- CREATE POLICY "Admins insert cms roles" ON public.cms_roles FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'));
+-- CREATE POLICY "Admins update cms roles" ON public.cms_roles FOR UPDATE TO authenticated USING (public.has_role(auth.uid(), 'admin')) WITH CHECK (public.has_role(auth.uid(), 'admin'));
+-- CREATE POLICY "Admins delete cms roles" ON public.cms_roles FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+-- 
+-- ALTER TABLE public.user_roles ADD COLUMN cms_role_id uuid REFERENCES public.cms_roles(id) ON DELETE SET NULL;
+-- 
+-- CREATE OR REPLACE FUNCTION public.has_perm(_user_id uuid, _perm text)
+-- RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+--   SELECT public.has_role(_user_id, 'admin') OR EXISTS (
+--     SELECT 1 FROM public.user_roles ur LEFT JOIN public.cms_roles c ON c.id = ur.cms_role_id
+--     WHERE ur.user_id = _user_id AND ur.role = 'editor'
+--       AND COALESCE((c.perms ->> _perm)::boolean, _perm IN ('text', 'images'))
+--   )
+-- $$;
+-- REVOKE EXECUTE ON FUNCTION public.has_perm(uuid, text) FROM anon, public;
+-- GRANT EXECUTE ON FUNCTION public.has_perm(uuid, text) TO authenticated;
+-- 
+-- CREATE OR REPLACE FUNCTION public.my_perms()
+-- RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+--   SELECT jsonb_build_object(
+--     'text', public.has_perm(auth.uid(), 'text'), 'images', public.has_perm(auth.uid(), 'images'),
+--     'blocks', public.has_perm(auth.uid(), 'blocks'), 'translate', public.has_perm(auth.uid(), 'translate'),
+--     'pages', public.has_perm(auth.uid(), 'pages'))
+-- $$;
+-- REVOKE EXECUTE ON FUNCTION public.my_perms() FROM anon, public;
+-- GRANT EXECUTE ON FUNCTION public.my_perms() TO authenticated;
+-- 
+-- ALTER TABLE public.page_content ADD COLUMN layout jsonb;
+-- 
+-- CREATE OR REPLACE FUNCTION public.guard_page_layout()
+-- RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- BEGIN
+--   IF NEW.state = 'draft' AND auth.uid() IS NOT NULL
+--      AND NEW.layout IS DISTINCT FROM (CASE WHEN TG_OP = 'UPDATE' THEN OLD.layout ELSE NULL END)
+--      AND NOT public.has_perm(auth.uid(), 'blocks') THEN
+--     RAISE EXCEPTION 'Je hebt geen rechten om blokken te wijzigen.';
+--   END IF;
+--   RETURN NEW;
+-- END $$;
+-- CREATE TRIGGER guard_page_layout BEFORE INSERT OR UPDATE ON public.page_content FOR EACH ROW EXECUTE FUNCTION public.guard_page_layout();
+-- 
+-- CREATE OR REPLACE FUNCTION public.guard_page_structure()
+-- RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- BEGIN
+--   IF auth.uid() IS NOT NULL AND NOT public.has_perm(auth.uid(), 'pages') AND (
+--     (TG_OP = 'INSERT' AND (NEW.sort_order IS NOT NULL OR NEW.parent_path IS NOT NULL OR NEW.deleted)) OR
+--     (TG_OP = 'UPDATE' AND (NEW.sort_order IS DISTINCT FROM OLD.sort_order OR NEW.parent_path IS DISTINCT FROM OLD.parent_path OR NEW.deleted IS DISTINCT FROM OLD.deleted))
+--   ) THEN
+--     RAISE EXCEPTION 'Je hebt geen rechten om pagina''s te verschuiven of te verwijderen.';
+--   END IF;
+--   RETURN NEW;
+-- END $$;
+-- CREATE TRIGGER guard_page_structure BEFORE INSERT OR UPDATE ON public.page_settings FOR EACH ROW EXECUTE FUNCTION public.guard_page_structure();
+-- 
+-- CREATE OR REPLACE FUNCTION public.publish_all_drafts()
+-- RETURNS integer LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- DECLARE n integer;
+-- BEGIN
+--   IF NOT public.can_edit(auth.uid()) THEN RAISE EXCEPTION 'Geen rechten'; END IF;
+--   INSERT INTO public.page_content (path, state, data, layout, updated_at, updated_by)
+--   SELECT path, 'published', data, layout, now(), auth.uid() FROM public.page_content WHERE state = 'draft'
+--   ON CONFLICT (path, state) DO UPDATE SET data = EXCLUDED.data, layout = EXCLUDED.layout, updated_at = now(), updated_by = EXCLUDED.updated_by;
+--   GET DIAGNOSTICS n = ROW_COUNT;
+--   RETURN n;
+-- END $$;
+-- 
+-- CREATE TABLE public.block_templates (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name text NOT NULL,
+--   html text NOT NULL,
+--   created_by uuid,
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON public.block_templates TO authenticated;
+-- GRANT ALL ON public.block_templates TO service_role;
+-- ALTER TABLE public.block_templates ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Editors read blocks" ON public.block_templates FOR SELECT TO authenticated USING (public.can_edit(auth.uid()));
+-- CREATE POLICY "Block editors add blocks" ON public.block_templates FOR INSERT TO authenticated WITH CHECK (public.has_perm(auth.uid(), 'blocks'));
+-- CREATE POLICY "Block editors update blocks" ON public.block_templates FOR UPDATE TO authenticated USING (public.has_perm(auth.uid(), 'blocks')) WITH CHECK (public.has_perm(auth.uid(), 'blocks'));
+-- CREATE POLICY "Block editors delete blocks" ON public.block_templates FOR DELETE TO authenticated USING (public.has_perm(auth.uid(), 'blocks'));
+-- -- ===== 0009_custom_pages.sql =====
+-- CREATE TABLE public.custom_pages (
+--   path text PRIMARY KEY CHECK (path ~ '^/(nl|en)/[a-z0-9-]+$'),
+--   source_path text NOT NULL,
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   created_by uuid
+-- );
+-- GRANT SELECT ON public.custom_pages TO anon, authenticated;
+-- GRANT INSERT, DELETE ON public.custom_pages TO authenticated;
+-- GRANT ALL ON public.custom_pages TO service_role;
+-- ALTER TABLE public.custom_pages ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Public read custom pages" ON public.custom_pages FOR SELECT TO anon, authenticated USING (true);
+-- CREATE POLICY "Page managers create pages" ON public.custom_pages FOR INSERT TO authenticated WITH CHECK (public.has_perm(auth.uid(), 'pages'));
+-- CREATE POLICY "Page managers delete pages" ON public.custom_pages FOR DELETE TO authenticated USING (public.has_perm(auth.uid(), 'pages'));
+-- -- ===== 0010_custom_page_pairs_rename.sql =====
+-- ALTER TABLE public.custom_pages ADD COLUMN IF NOT EXISTS pair_path text;
+-- GRANT UPDATE ON public.custom_pages TO authenticated;
+-- CREATE POLICY "Page managers update pages" ON public.custom_pages FOR UPDATE TO authenticated USING (public.has_perm(auth.uid(), 'pages')) WITH CHECK (public.has_perm(auth.uid(), 'pages'));
+-- 
+-- CREATE OR REPLACE FUNCTION public.rename_custom_page(_old text, _new text)
+-- RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- BEGIN
+--   IF NOT public.has_perm(auth.uid(), 'pages') THEN RAISE EXCEPTION 'Geen rechten'; END IF;
+--   IF split_part(_old, '/', 2) <> split_part(_new, '/', 2) THEN RAISE EXCEPTION 'Taal mag niet wijzigen'; END IF;
+--   IF NOT EXISTS (SELECT 1 FROM custom_pages WHERE path = _old) THEN RAISE EXCEPTION 'Alleen zelf aangemaakte pagina''s kunnen een nieuwe URL krijgen'; END IF;
+--   IF EXISTS (SELECT 1 FROM custom_pages WHERE path = _new) THEN RAISE EXCEPTION 'Deze URL bestaat al'; END IF;
+--   UPDATE custom_pages SET path = _new WHERE path = _old;
+--   UPDATE custom_pages SET pair_path = _new WHERE pair_path = _old;
+--   UPDATE page_content SET path = _new WHERE path = _old;
+--   UPDATE page_settings SET path = _new WHERE path = _old;
+--   UPDATE page_settings SET parent_path = _new WHERE parent_path = _old;
+--   UPDATE page_seo SET path = _new WHERE path = _old;
+-- END $$;
+-- REVOKE ALL ON FUNCTION public.rename_custom_page(text, text) FROM public, anon;
+-- GRANT EXECUTE ON FUNCTION public.rename_custom_page(text, text) TO authenticated;
+-- -- ===== 0011_project_name_revisions.sql =====
+-- ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS project_name text NOT NULL DEFAULT 'Mijn website';
+-- 
+-- CREATE TABLE public.page_revisions (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   path text NOT NULL,
+--   data jsonb NOT NULL DEFAULT '{}'::jsonb,
+--   layout jsonb,
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   created_by uuid
+-- );
+-- CREATE INDEX page_revisions_path_idx ON public.page_revisions (path, created_at DESC);
+-- GRANT SELECT ON public.page_revisions TO authenticated;
+-- GRANT ALL ON public.page_revisions TO service_role;
+-- ALTER TABLE public.page_revisions ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Editors read revisions" ON public.page_revisions FOR SELECT TO authenticated USING (public.can_edit(auth.uid()));
+-- 
+-- CREATE OR REPLACE FUNCTION public.record_page_revision() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- BEGIN
+--   IF NEW.state = 'published' THEN
+--     INSERT INTO public.page_revisions(path, data, layout, created_by) VALUES (NEW.path, NEW.data, NEW.layout, NEW.updated_by);
+--     DELETE FROM public.page_revisions WHERE path = NEW.path AND id NOT IN (
+--       SELECT id FROM public.page_revisions WHERE path = NEW.path ORDER BY created_at DESC LIMIT 20);
+--   END IF;
+--   RETURN NEW;
+-- END $$;
+-- CREATE TRIGGER page_content_revision AFTER INSERT OR UPDATE ON public.page_content FOR EACH ROW EXECUTE FUNCTION public.record_page_revision();
+-- 
+-- CREATE OR REPLACE FUNCTION public.restore_page_revision(_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- DECLARE r public.page_revisions;
+-- BEGIN
+--   IF NOT public.can_edit(auth.uid()) THEN RAISE EXCEPTION 'not allowed'; END IF;
+--   SELECT * INTO r FROM public.page_revisions WHERE id = _id;
+--   IF NOT FOUND THEN RAISE EXCEPTION 'revision not found'; END IF;
+--   INSERT INTO public.page_content(path, state, data, layout, updated_by, updated_at)
+--   VALUES (r.path, 'draft', r.data, r.layout, auth.uid(), now()), (r.path, 'published', r.data, r.layout, auth.uid(), now())
+--   ON CONFLICT (path, state) DO UPDATE SET data = EXCLUDED.data, layout = EXCLUDED.layout, updated_by = EXCLUDED.updated_by, updated_at = now();
+-- END $$;
+-- REVOKE EXECUTE ON FUNCTION public.restore_page_revision(uuid) FROM anon, public;
+-- GRANT EXECUTE ON FUNCTION public.restore_page_revision(uuid) TO authenticated;
+-- -- ===== 0012_media_folders.sql =====
+-- CREATE TABLE public.media_folders (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 60),
+--   created_by uuid,
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON public.media_folders TO authenticated;
+-- GRANT ALL ON public.media_folders TO service_role;
+-- ALTER TABLE public.media_folders ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Editors read folders" ON public.media_folders FOR SELECT TO authenticated USING (public.can_edit(auth.uid()));
+-- CREATE POLICY "Editors add folders" ON public.media_folders FOR INSERT TO authenticated WITH CHECK (public.can_edit(auth.uid()));
+-- CREATE POLICY "Editors rename folders" ON public.media_folders FOR UPDATE TO authenticated USING (public.can_edit(auth.uid())) WITH CHECK (public.can_edit(auth.uid()));
+-- CREATE POLICY "Admins delete folders" ON public.media_folders FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+-- ALTER TABLE public.media ADD COLUMN folder_id uuid REFERENCES public.media_folders(id) ON DELETE SET NULL;
+-- -- ===== 0013_audit_log.sql =====
+-- CREATE TABLE public.audit_log (
+--   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   actor uuid,
+--   actor_email text,
+--   action text NOT NULL,
+--   target text
+-- );
+-- CREATE INDEX audit_log_created_idx ON public.audit_log (created_at DESC);
+-- GRANT SELECT ON public.audit_log TO authenticated;
+-- GRANT ALL ON public.audit_log TO service_role;
+-- ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Admins read audit log" ON public.audit_log FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+-- 
+-- CREATE OR REPLACE FUNCTION public.write_audit() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- DECLARE act text; tgt text; r record;
+-- BEGIN
+--   r := CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+--   IF TG_TABLE_NAME = 'page_content' THEN
+--     IF NEW.state <> 'published' THEN RETURN NEW; END IF;
+--     act := 'Pagina gepubliceerd'; tgt := NEW.path;
+--   ELSIF TG_TABLE_NAME = 'custom_pages' THEN
+--     act := CASE TG_OP WHEN 'INSERT' THEN 'Pagina aangemaakt' WHEN 'DELETE' THEN 'Pagina verwijderd' ELSE 'Pagina-adres gewijzigd' END;
+--     tgt := r.path;
+--   ELSIF TG_TABLE_NAME = 'page_settings' THEN
+--     IF TG_OP = 'UPDATE' AND NEW.deleted AND NOT OLD.deleted THEN act := 'Pagina verwijderd'; ELSE RETURN r; END IF;
+--     tgt := NEW.path;
+--   ELSIF TG_TABLE_NAME = 'user_roles' THEN
+--     act := CASE TG_OP WHEN 'INSERT' THEN 'Rol toegekend: ' || NEW.role WHEN 'DELETE' THEN 'Rol ingetrokken: ' || OLD.role ELSE 'Rol gewijzigd: ' || NEW.role END;
+--     SELECT email INTO tgt FROM auth.users WHERE id = r.user_id;
+--   ELSIF TG_TABLE_NAME = 'media' THEN
+--     IF TG_OP <> 'DELETE' THEN RETURN r; END IF;
+--     act := 'Bestand verwijderd'; tgt := OLD.name;
+--   ELSIF TG_TABLE_NAME = 'site_settings' THEN
+--     act := 'Instellingen gewijzigd'; tgt := NULL;
+--   ELSIF TG_TABLE_NAME = 'cms_roles' THEN
+--     act := CASE TG_OP WHEN 'DELETE' THEN 'Rolprofiel verwijderd' ELSE 'Rolprofiel gewijzigd' END; tgt := r.name;
+--   ELSIF TG_TABLE_NAME = 'site_backups' THEN
+--     act := 'Back-up gemaakt'; tgt := NULL;
+--   END IF;
+--   INSERT INTO public.audit_log(actor, actor_email, action, target)
+--   VALUES (auth.uid(), (SELECT email FROM auth.users WHERE id = auth.uid()), act, tgt);
+--   RETURN r;
+-- END $$;
+-- 
+-- CREATE TRIGGER audit_page_content AFTER INSERT OR UPDATE ON public.page_content FOR EACH ROW EXECUTE FUNCTION public.write_audit();
+-- CREATE TRIGGER audit_custom_pages AFTER INSERT OR UPDATE OR DELETE ON public.custom_pages FOR EACH ROW EXECUTE FUNCTION public.write_audit();
+-- CREATE TRIGGER audit_page_settings AFTER UPDATE ON public.page_settings FOR EACH ROW EXECUTE FUNCTION public.write_audit();
+-- CREATE TRIGGER audit_user_roles AFTER INSERT OR UPDATE OR DELETE ON public.user_roles FOR EACH ROW EXECUTE FUNCTION public.write_audit();
+-- CREATE TRIGGER audit_media AFTER DELETE ON public.media FOR EACH ROW EXECUTE FUNCTION public.write_audit();
+-- CREATE TRIGGER audit_site_settings AFTER UPDATE ON public.site_settings FOR EACH ROW EXECUTE FUNCTION public.write_audit();
+-- CREATE TRIGGER audit_cms_roles AFTER INSERT OR UPDATE OR DELETE ON public.cms_roles FOR EACH ROW EXECUTE FUNCTION public.write_audit();
+-- CREATE TRIGGER audit_site_backups AFTER INSERT ON public.site_backups FOR EACH ROW EXECUTE FUNCTION public.write_audit();
+-- 
+-- CREATE OR REPLACE FUNCTION public.audit_restore() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- BEGIN RETURN NULL; END $$;
+-- 
+-- CREATE OR REPLACE FUNCTION public.log_audit(_action text, _target text) RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+--   INSERT INTO public.audit_log(actor, actor_email, action, target)
+--   SELECT auth.uid(), (SELECT email FROM auth.users WHERE id = auth.uid()), left(_action, 120), left(_target, 300)
+--   WHERE public.can_edit(auth.uid()) AND _action IN ('Back-up teruggezet', 'Versie teruggezet', 'Alles gepubliceerd', 'Gebruiker uitgenodigd', 'Gebruiker verwijderd');
+-- $$;
+-- REVOKE EXECUTE ON FUNCTION public.log_audit(text, text) FROM anon, public;
+-- GRANT EXECUTE ON FUNCTION public.log_audit(text, text) TO authenticated;
+-- DROP FUNCTION public.audit_restore();
+-- -- ===== 0014_page_views_stats.sql =====
+-- CREATE TABLE public.page_views (
+--   id bigserial PRIMARY KEY,
+--   created_at timestamptz NOT NULL DEFAULT now(),
+--   visitor_id text NOT NULL,
+--   session_id text NOT NULL,
+--   path text NOT NULL,
+--   source text NOT NULL DEFAULT 'Direct / None',
+--   device text NOT NULL DEFAULT 'Desktop'
+-- );
+-- GRANT ALL ON public.page_views TO service_role;
+-- ALTER TABLE public.page_views ENABLE ROW LEVEL SECURITY;
+-- CREATE INDEX page_views_created_idx ON public.page_views (created_at);
+-- 
+-- CREATE OR REPLACE FUNCTION public.track_view(_visitor text, _session text, _path text, _source text, _device text)
+-- RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- BEGIN
+--   IF length(_visitor) > 64 OR length(_session) > 64 OR length(_path) > 300 OR _path !~ '^/' THEN RETURN; END IF;
+--   IF _path ~ '^/(smart-websites|reset-password|invite|cms-media|api)' THEN RETURN; END IF;
+--   INSERT INTO public.page_views (visitor_id, session_id, path, source, device)
+--   VALUES (_visitor, _session, _path, left(coalesce(nullif(_source,''),'Direct / None'),80),
+--     CASE WHEN _device IN ('Mobile','Tablet','Laptop','Desktop') THEN _device ELSE 'Desktop' END);
+-- END $$;
+-- GRANT EXECUTE ON FUNCTION public.track_view(text,text,text,text,text) TO anon, authenticated;
+-- 
+-- CREATE OR REPLACE FUNCTION public.get_stats(_days int)
+-- RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+-- DECLARE since timestamptz := date_trunc('day', now()) - make_interval(days => greatest(least(_days,366),1) - 1);
+-- BEGIN
+--   IF NOT EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid()) THEN RAISE EXCEPTION 'forbidden'; END IF;
+--   RETURN jsonb_build_object(
+--     'daily', (SELECT coalesce(jsonb_agg(jsonb_build_object('day', d::date, 'visitors', coalesce(v.u,0), 'views', coalesce(v.c,0)) ORDER BY d),'[]')
+--       FROM generate_series(since, date_trunc('day', now()), interval '1 day') d
+--       LEFT JOIN (SELECT date_trunc('day', created_at) dd, count(DISTINCT visitor_id) u, count(*) c FROM page_views WHERE created_at >= since GROUP BY 1) v ON v.dd = d),
+--     'visitors', (SELECT count(DISTINCT visitor_id) FROM page_views WHERE created_at >= since),
+--     'views', (SELECT count(*) FROM page_views WHERE created_at >= since),
+--     'pages', (SELECT coalesce(jsonb_agg(jsonb_build_object('k',path,'n',n)),'[]') FROM (SELECT path, count(*) n FROM page_views WHERE created_at >= since GROUP BY 1 ORDER BY 2 DESC LIMIT 25) x),
+--     'entries', (SELECT coalesce(jsonb_agg(jsonb_build_object('k',path,'n',n)),'[]') FROM (SELECT path, count(*) n FROM (SELECT DISTINCT ON (session_id) path FROM page_views WHERE created_at >= since ORDER BY session_id, created_at) s GROUP BY 1 ORDER BY 2 DESC LIMIT 25) x),
+--     'exits', (SELECT coalesce(jsonb_agg(jsonb_build_object('k',path,'n',n)),'[]') FROM (SELECT path, count(*) n FROM (SELECT DISTINCT ON (session_id) path FROM page_views WHERE created_at >= since ORDER BY session_id, created_at DESC) s GROUP BY 1 ORDER BY 2 DESC LIMIT 25) x),
+--     'sources', (SELECT coalesce(jsonb_agg(jsonb_build_object('k',source,'n',n)),'[]') FROM (SELECT source, count(DISTINCT session_id) n FROM page_views WHERE created_at >= since GROUP BY 1 ORDER BY 2 DESC LIMIT 25) x),
+--     'devices', (SELECT coalesce(jsonb_agg(jsonb_build_object('k',device,'n',n)),'[]') FROM (SELECT device, count(DISTINCT visitor_id) n FROM page_views WHERE created_at >= since GROUP BY 1 ORDER BY 2 DESC) x)
+--   );
+-- END $$;
+-- REVOKE EXECUTE ON FUNCTION public.get_stats(int) FROM anon, public;
+-- GRANT EXECUTE ON FUNCTION public.get_stats(int) TO authenticated;
+-- -- ===== 0015_site_domain_and_system_check.sql =====
+-- ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS site_domain text NOT NULL DEFAULT '';
+-- -- site domain is filled in under Instellingen
+-- 
+-- CREATE OR REPLACE FUNCTION public.system_check()
+-- RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+-- BEGIN
+--   IF NOT public.has_role(auth.uid(), 'admin') THEN RAISE EXCEPTION 'forbidden'; END IF;
+--   RETURN jsonb_build_object(
+--     'admins', (SELECT count(*) FROM public.user_roles WHERE role = 'admin'),
+--     'bucket', EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'cms-media' AND NOT public),
+--     'tables_without_rls', (SELECT coalesce(jsonb_agg(c.relname), '[]'::jsonb) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity),
+--     'site_domain', (SELECT site_domain FROM public.site_settings WHERE id = 1)
+--   );
+-- END $$;
+-- REVOKE ALL ON FUNCTION public.system_check() FROM public, anon;
+-- GRANT EXECUTE ON FUNCTION public.system_check() TO authenticated;
+-- -- ===== 0016_tighten_function_execute.sql =====
+-- REVOKE EXECUTE ON FUNCTION public.guard_page_layout(), public.guard_page_structure(), public.record_page_revision(), public.write_audit(), public.assign_first_admin() FROM public, anon, authenticated;
+-- REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role), public.can_edit(uuid) FROM public, anon;
+-- GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role), public.can_edit(uuid) TO authenticated;
+-- -- ===== setup for this project =====
+-- insert into storage.buckets (id, name, public) values ('cms-media', 'cms-media', false) on conflict (id) do nothing;
+-- -- Existing accounts lost their old role: the oldest account becomes admin again.
+-- insert into public.user_roles (user_id, role)
+-- select id, 'admin' from auth.users
+-- where not exists (select 1 from public.user_roles where role = 'admin')
+-- order by created_at limit 1;

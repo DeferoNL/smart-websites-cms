@@ -1,0 +1,3 @@
+ALTER TABLE public.site_settings ADD COLUMN IF NOT EXISTS menu_icon_color text NOT NULL DEFAULT '#1f2937';
+CREATE OR REPLACE FUNCTION public.public_site_look() RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT jsonb_build_object('social',COALESCE(social,'{}'::jsonb),'menu_icon_color',menu_icon_color) FROM public.site_settings WHERE id=1 $$;
+GRANT EXECUTE ON FUNCTION public.public_site_look() TO anon,authenticated;

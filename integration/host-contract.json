@@ -1,0 +1,30 @@
+{
+  "sourceDistribution": true,
+  "hostImports": [
+    "@/assets/smart-websites-logo.svg.asset.json",
+    "@/integrations/supabase/auth-middleware",
+    "@/integrations/supabase/client",
+    "@/integrations/supabase/client.server",
+    "@/integrations/supabase/cron-auth",
+    "@/integrations/supabase/types",
+    "@/site/cms-adapter",
+    "@/site/pages.json",
+    "@/site/website"
+  ],
+  "framework": {
+    "react": "^19.2.0",
+    "start": "1.168.60",
+    "router": "1.170.41"
+  },
+  "routeTemplates": [
+    "src/routes/smart-websites.tsx",
+    "src/routes/smart-websites_.sites.tsx",
+    "src/routes/reset-password.tsx",
+    "src/routes/cms-media.$.tsx",
+    "src/routes/api/public/cms-version.ts",
+    "src/routes/api/public/jobs/cms-security-check.ts"
+  ],
+  "migrations": "Review applied migration history; never execute on package install or page load.",
+  "css": "Keep client tokens and website styles; explicitly integrate styles/admin.css and CMS theme tokens.",
+  "serverTransforms": "Pilot must verify TanStack Start transforms source dependencies in production; no SSR externalization."
+}

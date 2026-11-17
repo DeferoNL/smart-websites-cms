@@ -1,0 +1,13 @@
+CREATE TABLE public.cms_installation (id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1), owner_email text NOT NULL DEFAULT 'office@defero.nl', completed_at timestamptz, requested_at timestamptz);
+GRANT ALL ON public.cms_installation TO service_role;
+ALTER TABLE public.cms_installation ENABLE ROW LEVEL SECURITY;
+INSERT INTO public.cms_installation (id, completed_at) SELECT 1, now() WHERE EXISTS (SELECT 1 FROM public.user_roles WHERE role='admin') ON CONFLICT (id) DO NOTHING;
+CREATE OR REPLACE FUNCTION public.cms_setup_available() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT NOT EXISTS (SELECT 1 FROM public.user_roles WHERE role='admin') AND NOT EXISTS (SELECT 1 FROM public.cms_installation WHERE completed_at IS NOT NULL) $$;
+REVOKE ALL ON FUNCTION public.cms_setup_available() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.cms_setup_available() TO anon, authenticated, service_role;
+CREATE OR REPLACE FUNCTION public.claim_cms_setup() RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE email text; BEGIN PERFORM pg_advisory_xact_lock(843921); IF NOT public.cms_setup_available() THEN RAISE EXCEPTION 'Installatie is al voltooid.'; END IF; INSERT INTO public.cms_installation(id) VALUES(1) ON CONFLICT(id) DO NOTHING; IF EXISTS(SELECT 1 FROM public.cms_installation WHERE requested_at > now()-interval '10 minutes') THEN RAISE EXCEPTION 'Er is al een uitnodiging aangevraagd. Probeer het over tien minuten opnieuw.'; END IF; UPDATE public.cms_installation SET requested_at=now() WHERE id=1 RETURNING owner_email INTO email; RETURN email; END $$;
+REVOKE ALL ON FUNCTION public.claim_cms_setup() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_cms_setup() TO service_role;
+CREATE OR REPLACE FUNCTION public.assign_reserved_initial_admin() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN PERFORM pg_advisory_xact_lock(843921); IF NEW.invited_at IS NOT NULL AND EXISTS(SELECT 1 FROM public.cms_installation WHERE id=1 AND completed_at IS NULL AND requested_at > now()-interval '10 minutes' AND lower(owner_email)=lower(NEW.email)) AND NOT EXISTS(SELECT 1 FROM public.user_roles WHERE role='admin') THEN INSERT INTO public.user_roles(user_id,role) VALUES(NEW.id,'admin') ON CONFLICT(user_id,role) DO NOTHING; UPDATE public.cms_installation SET completed_at=now() WHERE id=1; END IF; RETURN NEW; END $$;
+REVOKE ALL ON FUNCTION public.assign_reserved_initial_admin() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER cms_reserved_initial_admin AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.assign_reserved_initial_admin();

@@ -1,0 +1,19 @@
+.cms-slider{--slider-ink:var(--site-ink,var(--foreground));--slider-surface:var(--site-bg,var(--background));position:relative;overflow:hidden;aspect-ratio:16/9;background:var(--slider-ink);width:100%;margin:0 auto}
+.cms-slider-track{position:relative;width:100%;height:100%}
+.cms-slider-frame{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity var(--gallery-speed) ease,transform var(--gallery-speed) ease;pointer-events:none}
+.cms-slider-frame.active{opacity:1;pointer-events:auto}
+.cms-slider-frame>img{width:100%;height:100%;object-fit:cover;display:block}
+.cms-slider.effect-slide .cms-slider-track{display:flex;transition:transform var(--gallery-speed) ease}
+.cms-slider.effect-slide .cms-slider-frame{position:relative;flex:0 0 100%;opacity:1}
+.cms-slider.effect-zoom .cms-slider-frame{transform:scale(1.1)}
+.cms-slider.effect-zoom .cms-slider-frame.active{transform:scale(1)}
+.cms-slider-legacy .cms-slider-frame>article{display:block!important;visibility:visible!important;opacity:1!important;position:relative!important;width:100%;height:100%;transform:none!important}
+.cms-slider-legacy .cms-slider-frame img{width:100%;height:100%;object-fit:cover}
+.cms-slider-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:var(--slider-surface);color:var(--slider-ink);font-size:28px;line-height:1;cursor:pointer;z-index:2}
+.cms-slider-nav.prev{left:12px}.cms-slider-nav.next{right:12px}
+.cms-slider-dots{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:2}
+.cms-slider-dots button{width:10px;height:10px;border:0;border-radius:50%;background:color-mix(in srgb,var(--slider-surface) 50%,transparent);cursor:pointer;padding:0}
+.cms-slider-dots button[aria-current="true"]{background:var(--slider-surface)}
+.cms-slider-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--slider-surface)}
+[data-cms-editing] .cms-slider{outline:2px dashed var(--primary);outline-offset:4px;cursor:pointer}
+@media(prefers-reduced-motion:reduce){.cms-slider-track,.cms-slider-frame{transition:none!important;transform:none}.cms-slider.effect-slide .cms-slider-track{transition:none!important}}

@@ -1,0 +1,33 @@
+CREATE OR REPLACE FUNCTION public.my_perms() RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT jsonb_object_agg(k, public.has_perm(auth.uid(), k)) FROM unnest(ARRAY['text','images','blocks','translate','pages','activity','settings','users','stats','updates','backups','dns']) k $$;
+
+DROP POLICY IF EXISTS "Admins read activity" ON public.audit_log;
+CREATE POLICY "Activity readers read activity" ON public.audit_log FOR SELECT TO authenticated USING (public.has_perm(auth.uid(),'activity'));
+
+DROP POLICY IF EXISTS "admin write settings" ON public.site_settings;
+CREATE POLICY "Settings managers write settings" ON public.site_settings FOR ALL TO authenticated USING (public.has_perm(auth.uid(),'settings')) WITH CHECK (public.has_perm(auth.uid(),'settings'));
+
+DROP POLICY IF EXISTS "Admins manage role profiles" ON public.cms_roles;
+CREATE POLICY "User managers manage role profiles" ON public.cms_roles FOR ALL TO authenticated USING (public.has_perm(auth.uid(),'users')) WITH CHECK (public.has_perm(auth.uid(),'users'));
+
+DROP POLICY IF EXISTS "own roles or admin read" ON public.user_roles;
+CREATE POLICY "own roles or user managers read" ON public.user_roles FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.has_perm(auth.uid(),'users'));
+
+CREATE OR REPLACE FUNCTION public.system_check() RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $$ BEGIN IF NOT public.has_perm(auth.uid(),'dns') THEN RAISE EXCEPTION 'forbidden'; END IF; RETURN jsonb_build_object('admins',(SELECT count(*) FROM user_roles WHERE role='admin'),'bucket',EXISTS(SELECT 1 FROM storage.buckets WHERE id='cms-media' AND NOT public),'tables_without_rls',(SELECT coalesce(jsonb_agg(c.relname),'[]'::jsonb) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='r' AND NOT c.relrowsecurity),'site_domain',(SELECT site_domain FROM site_settings WHERE id=1)); END $$;
+
+CREATE OR REPLACE FUNCTION public.get_stats(_days int) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $$ DECLARE since timestamptz := date_trunc('day',now())-make_interval(days=>greatest(least(_days,366),1)-1); BEGIN IF NOT public.has_perm(auth.uid(),'stats') THEN RAISE EXCEPTION 'forbidden'; END IF; RETURN jsonb_build_object('daily',(SELECT coalesce(jsonb_agg(jsonb_build_object('day',d::date,'visitors',coalesce(v.u,0),'views',coalesce(v.c,0)) ORDER BY d),'[]') FROM generate_series(since,date_trunc('day',now()),interval '1 day') d LEFT JOIN (SELECT date_trunc('day',created_at) dd,count(DISTINCT visitor_id) u,count(*) c FROM page_views WHERE created_at>=since GROUP BY 1) v ON v.dd=d),'visitors',(SELECT count(DISTINCT visitor_id) FROM page_views WHERE created_at>=since),'views',(SELECT count(*) FROM page_views WHERE created_at>=since),'pages',(SELECT coalesce(jsonb_agg(jsonb_build_object('k',path,'n',n)),'[]') FROM (SELECT path,count(*) n FROM page_views WHERE created_at>=since GROUP BY 1 ORDER BY 2 DESC LIMIT 25) x),'entries',(SELECT coalesce(jsonb_agg(jsonb_build_object('k',path,'n',n)),'[]') FROM (SELECT path,count(*) n FROM (SELECT DISTINCT ON(session_id) path FROM page_views WHERE created_at>=since ORDER BY session_id,created_at) s GROUP BY 1 ORDER BY 2 DESC LIMIT 25) x),'exits',(SELECT coalesce(jsonb_agg(jsonb_build_object('k',path,'n',n)),'[]') FROM (SELECT path,count(*) n FROM (SELECT DISTINCT ON(session_id) path FROM page_views WHERE created_at>=since ORDER BY session_id,created_at DESC) s GROUP BY 1 ORDER BY 2 DESC LIMIT 25) x),'sources',(SELECT coalesce(jsonb_agg(jsonb_build_object('k',source,'n',n)),'[]') FROM (SELECT source,count(DISTINCT visitor_id) n FROM page_views WHERE created_at>=since GROUP BY 1 ORDER BY 2 DESC LIMIT 25) x),'devices',(SELECT coalesce(jsonb_agg(jsonb_build_object('k',device,'n',n)),'[]') FROM (SELECT device,count(DISTINCT visitor_id) n FROM page_views WHERE created_at>=since GROUP BY 1 ORDER BY 2 DESC) x)); END $$;
+
+CREATE OR REPLACE FUNCTION public.create_site_backup() RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE new_id uuid; BEGIN IF NOT public.has_perm(auth.uid(),'backups') THEN RAISE EXCEPTION 'Geen rechten'; END IF; INSERT INTO site_backups(created_by,created_by_email,data) VALUES(auth.uid(),(SELECT email FROM auth.users WHERE id=auth.uid()),jsonb_build_object('page_content',coalesce((SELECT jsonb_agg(to_jsonb(c)) FROM page_content c),'[]'::jsonb),'page_seo',coalesce((SELECT jsonb_agg(to_jsonb(s)) FROM page_seo s),'[]'::jsonb),'page_settings',coalesce((SELECT jsonb_agg(to_jsonb(p)) FROM page_settings p),'[]'::jsonb),'custom_pages',coalesce((SELECT jsonb_agg(to_jsonb(cp)) FROM custom_pages cp),'[]'::jsonb))) RETURNING id INTO new_id; DELETE FROM site_backups WHERE id IN(SELECT id FROM site_backups ORDER BY created_at DESC OFFSET 3); RETURN new_id; END $$;
+
+CREATE OR REPLACE FUNCTION public.restore_site_backup(_id uuid) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE b jsonb; BEGIN IF NOT public.has_perm(auth.uid(),'backups') THEN RAISE EXCEPTION 'Geen rechten'; END IF; SELECT data INTO b FROM site_backups WHERE id=_id; IF b IS NULL THEN RAISE EXCEPTION 'Back-up niet gevonden'; END IF;
+IF b ? 'custom_pages' THEN
+  DELETE FROM page_content WHERE path IN (SELECT path FROM custom_pages);
+  DELETE FROM page_seo WHERE path IN (SELECT path FROM custom_pages);
+  DELETE FROM page_settings WHERE path IN (SELECT path FROM custom_pages);
+  DELETE FROM custom_pages WHERE path IS NOT NULL;
+  INSERT INTO custom_pages SELECT * FROM jsonb_populate_recordset(NULL::public.custom_pages,b->'custom_pages');
+END IF;
+DELETE FROM page_content WHERE path IS NOT NULL; DELETE FROM page_seo WHERE path IS NOT NULL; DELETE FROM page_settings WHERE path IS NOT NULL;
+INSERT INTO page_content SELECT * FROM jsonb_populate_recordset(NULL::public.page_content,b->'page_content'); INSERT INTO page_seo SELECT * FROM jsonb_populate_recordset(NULL::public.page_seo,b->'page_seo'); INSERT INTO page_settings SELECT * FROM jsonb_populate_recordset(NULL::public.page_settings,b->'page_settings'); END $$;
+
+REVOKE EXECUTE ON FUNCTION public.my_perms(), public.system_check(), public.get_stats(int), public.create_site_backup(), public.restore_site_backup(uuid) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.my_perms(), public.system_check(), public.get_stats(int), public.create_site_backup(), public.restore_site_backup(uuid) TO authenticated;

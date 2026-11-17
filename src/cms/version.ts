@@ -2,9 +2,13 @@
 // security: true marks a release that every client site must install promptly (daily alert from the master).
 export type ChangelogEntry = { version: string; date: string; changes: string[]; security?: boolean };
 
-export const CMS_VERSION = '3.0.1';
+export const CMS_VERSION = '3.0.2';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.0.2', date: '2026-11-17', security: true,
+    changes: ['CMS-pakket gebruikt de eigen geverifieerde e-mailafzender van iedere website; afzendernaam blijft SMART Websites.', 'Vaste beheerder beschermd tegen verwijderen en rolwijzigingen; gereserveerde installatie, tien minuten wachttijd en bestaande installatielatch behouden.', 'Ondersteuning voor bestaande openbare websitefunctie zonder databasewijziging; uitsluitingen en toegangsbeveiliging behouden.'],
+  },
   {
     version: '3.0.1', date: '2026-11-11',
     changes: ['Blauwe CMS-actieknoppen beschermd tegen bestaande website-stijlen, zonder overige vormgeving te wijzigen.', 'Directe CMS-link per klantwebsite in het centrale overzicht; update-opdracht controleert ook dashboard, Helpdesk en gedeelde knopstijlen.'],

@@ -17,7 +17,7 @@ export const Route = createFileRoute('/api/public/jobs/cms-security-check')({
         if (error) return Response.json({ ok: false }, { status: 500 });
         const outdated = (data ?? []).filter(s => compareVersions(s.version, securityVersion) < 0);
         if (!outdated.length) return Response.json({ ok: true, outdated: 0 });
-        const { sendTemplateEmail } = await import('@defero/smart-websites-cms/src/lib/email-templates/send-email.ts');
+        const { sendTemplateEmail } = await import('@/lib/email-templates/send-email');
         const day = new Date().toISOString().slice(0, 10);
         const result = await sendTemplateEmail('cms-security-alert', 'office@defero.nl', {
           idempotencyKey: `cms-security-alert-${securityVersion}-${day}`,

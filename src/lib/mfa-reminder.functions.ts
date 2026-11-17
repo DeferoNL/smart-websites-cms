@@ -26,7 +26,7 @@ export const checkMfaReminder = createServerFn({ method: 'POST' })
     // Claim the slot first so parallel tabs don't double-send.
     await supabaseAdmin.auth.admin.updateUserById(u.id, { app_metadata: { ...u.app_metadata, mfa_reminder_at: sentAt } });
     try {
-      const { sendTemplateEmail } = await import('./email-templates/send-email.ts');
+      const { sendTemplateEmail } = await import('@/lib/email-templates/send-email');
       await sendTemplateEmail('mfa-reminder', u.email, {
         templateData: { dashboardUrl: `${data.origin}/smart-websites` },
         idempotencyKey: `mfa-reminder-${u.id}-${sentAt.slice(0, 10)}`,

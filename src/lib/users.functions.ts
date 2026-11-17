@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
+import { assertReservedAdminUnchanged, reservedAdminEmail } from '../cms/setup-policy.ts';
 
 type Role = 'admin' | 'editor';
 
@@ -47,6 +48,7 @@ export const inviteUser = createServerFn({ method: 'POST' })
   .handler(async ({ data, context }) => {
     await assertUserManager(context);
     await validateProfile(context, data.role, data.cmsRoleId);
+    if (reservedAdminEmail(data.email) && data.role !== 'admin') throw new Error('De vaste beheerder blijft Administrator.');
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
     const { data: res, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, { redirectTo: `${data.origin}/reset-password` });
     if (error) throw new Error(error.message);
@@ -68,6 +70,9 @@ export const setUserRole = createServerFn({ method: 'POST' })
     if (data.userId === context.userId) throw new Error('Je kunt je eigen rol niet wijzigen.');
     await validateProfile(context, data.role, data.cmsRoleId);
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { data: target, error: targetError } = await supabaseAdmin.auth.admin.getUserById(data.userId);
+    if (targetError || !target.user?.email) throw new Error('Gebruiker kon niet veilig worden gecontroleerd.');
+    assertReservedAdminUnchanged(target.user.email);
     const { error: deleteError } = await supabaseAdmin.from('user_roles').delete().eq('user_id', data.userId);
     if (deleteError) throw new Error(deleteError.message);
     const { error } = await supabaseAdmin.from('user_roles').insert({ user_id: data.userId, role: data.role, cms_role_id: data.cmsRoleId });
@@ -82,6 +87,9 @@ export const removeUser = createServerFn({ method: 'POST' })
     await assertUserManager(context);
     if (data.userId === context.userId) throw new Error('Je kunt jezelf niet verwijderen.');
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { data: target, error: targetError } = await supabaseAdmin.auth.admin.getUserById(data.userId);
+    if (targetError || !target.user?.email) throw new Error('Gebruiker kon niet veilig worden gecontroleerd.');
+    assertReservedAdminUnchanged(target.user.email);
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (error) throw new Error(error.message);
     return { ok: true };

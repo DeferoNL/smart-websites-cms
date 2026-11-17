@@ -5,6 +5,7 @@ import type { CmsContent } from '../cms/content.ts';
 import type { Layout } from '../cms/blocks.ts';
 import { DEFAULT_SITE_LANGUAGES, type SiteLanguages } from '../cms/languages.ts';
 import type { PublicCmsPageData } from './public-cms-data.ts';
+import { readCompatiblePublicCmsData } from './public-cms-compat.ts';
 
 function publicClient(bearer?: string) {
   const key = process.env['SUPABASE_PUBLISHABLE_KEY']!;
@@ -24,9 +25,10 @@ function publicClient(bearer?: string) {
 export { publicClient };
 
 export async function readPublicCmsPageData(): Promise<PublicCmsPageData> {
-  const { data, error } = await publicClient().rpc('public_cms_page_data');
-  if (error) throw new Error('Websitegegevens konden niet worden geladen.');
-  return data as unknown as PublicCmsPageData;
+  const client = publicClient();
+  // Both names are explicit public projections; older host-generated types may list only one.
+  const rpc = client.rpc.bind(client) as unknown as Parameters<typeof readCompatiblePublicCmsData>[0];
+  return readCompatiblePublicCmsData(rpc);
 }
 
 export const getSiteLanguages = createServerFn({ method: 'GET' }).handler(async () => {

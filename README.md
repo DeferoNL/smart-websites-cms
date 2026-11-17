@@ -43,6 +43,25 @@ Ook de lokale CMS-logoverwijzing en eventuele planning-authenticatie blijven bij
 het ontvangende project; de logoverwijzing moet daar al aanwezig zijn of afzonderlijk
 via de normale media-import worden toegevoegd.
 
+Vanaf 3.0.2 blijft `@/lib/email-templates/send-email` een expliciete host-import.
+Het pakket levert dus geen Master-verzenddomein of transport mee. Iedere website
+behoudt haar eigen door Lovable geverifieerde e-mailconfiguratie. Controleer bij
+installatie dat deze lokale helper altijd **SMART Websites** als afzendernaam
+gebruikt en de eigen projectnaam server-side toevoegt; nooit een willekeurig,
+ongeverifieerd domein uit een formulier gebruiken. Auth-webhooks en bijbehorende
+mailtemplates blijven lokaal en moeten dezelfde identiteit behouden.
+
+De installatie blijft gereserveerd voor het vaste beheerdersadres, inclusief
+tien minuten wachttijd en bestaande permanente voltooiings-/uitnodigingscontrole.
+Het vaste account mag niet worden verwijderd of van rol veranderd. Behoud ook
+lokale databaseguards: de gedeelde serverchecks vervangen die niet.
+
+Openbare gegevens ondersteunen zowel `public_cms_page_data` als de bestaande
+`public_website_configuration`-projectie. Alleen een ontbrekende functie activeert
+de terugval; toegangsfouten niet. De bestaande uitsluitingsvelden blijven intact.
+Er wordt geen functie aangemaakt: als beide ontbreken, eerst goedkeuring vragen.
+Gewoon wachtwoordherstel voor andere uitgenodigde gebruikers blijft beschikbaar.
+
 De dashboard- en HTTP-pagina's staan als **installatiesjablonen** in `templates/`.
 TanStack Router moet deze in de routes van de klant genereren; een route is niet
 zomaar een gewone bibliotheekcomponent. De sjablonen verwijzen al naar de gedeelde

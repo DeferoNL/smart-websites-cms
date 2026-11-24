@@ -1,6 +1,6 @@
 {
   "name": "@defero/smart-websites-cms",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "private": true,
   "type": "module",
   "description": "SMART Websites CMS source distribution for TanStack Start",
@@ -9,6 +9,7 @@
     "./slider": "./src/cms/GallerySlider.tsx",
     "./theme": "./src/cms/ThemeProvider.tsx",
     "./preview-access": "./src/cms/PreviewAccess.tsx",
+    "./tracker": "./src/cms/tracker.ts",
     "./version": "./src/cms/version.ts",
     "./content": "./src/cms/content.ts",
     "./blocks": "./src/cms/blocks.ts",

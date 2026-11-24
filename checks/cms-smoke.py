@@ -1,7 +1,8 @@
 """CMS smoke test: visible icons and side padding in dashboard/editor text buttons.
 Run after every CMS update: python3 scripts/cms-smoke.py  (dev server on :8080, signed-in session minted)."""
-import asyncio, json, os, sys
+import asyncio, os, sys
 from playwright.async_api import async_playwright
+from lovable_playwright_defaults import signed_in_context
 
 BASE = os.environ.get("CMS_BASE", "http://localhost:8080")
 PAGES = ["/smart-websites"]
@@ -33,19 +34,12 @@ CHECK = """() => [...document.querySelectorAll('.sw-admin button, .sw-admin a[da
    return failures;
  })"""
 
-def session():
-    if os.environ.get("LOVABLE_BROWSER_AUTH_STATUS") == "injected":
-        return os.environ["LOVABLE_BROWSER_SUPABASE_STORAGE_KEY"], os.environ["LOVABLE_BROWSER_SUPABASE_SESSION_JSON"]
-    m = json.load(open(os.path.expanduser("~/.cache/lovable-auth/session.json")))
-    return m["storage_key"], json.dumps(m["session"])
-
 async def main():
-    key, sess = session(); failures = []
+    failures = []
     async with async_playwright() as p:
         b = await p.chromium.launch(headless=True)
         for w in (1280, 770, 390):
-            page = await (await b.new_context(viewport={"width": w, "height": 1800})).new_page()
-            await page.goto(BASE); await page.evaluate("([k,v]) => localStorage.setItem(k,v)", [key, sess])
+            page = await (await signed_in_context(b, viewport={"width": w, "height": 1800})).new_page()
             for path in PAGES:
                 await page.goto(BASE + path); await page.wait_for_selector(".sw-admin button svg", timeout=20000)
                 await page.wait_for_timeout(800)

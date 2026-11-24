@@ -30,8 +30,9 @@ describe('verified auth email handoff', () => {
     if (!email) throw new Error('Missing auth template');
     const url = `https://auth.example/verify?type=${type}&redirect_to=https%3A%2F%2Foldskool.example.nl%2Freset-password`;
     const rendered = await email.render({ email: 'test@example.nl', url });
-    if (!isValidElement<{ siteName: string; confirmationUrl: string }>(rendered)) throw new Error('Missing email');
+    if (!isValidElement<{ siteName: string; siteUrl?: string; confirmationUrl: string }>(rendered)) throw new Error('Missing email');
     expect(rendered.props.siteName).toBe('Oldskool Outdoor');
+    if (type === 'invite') expect(rendered.props.siteUrl).toBe('https://oldskool.example.nl');
     expect(rendered.props.confirmationUrl).toBe(url);
   });
 });

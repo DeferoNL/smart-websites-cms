@@ -24,6 +24,7 @@ uit `src/cms/version.ts`; voorbereiding alleen verhoogt de CMS-versie niet.
 - `@defero/smart-websites-cms/slider`: `GallerySlider`
 - `@defero/smart-websites-cms/theme`: `CmsThemeProvider`, `useCmsTheme`
 - `@defero/smart-websites-cms/preview-access`: `PreviewAccess`
+- `@defero/smart-websites-cms/tracker`: `trackView`, `sourceFrom`, `deviceFrom`
 - `/version`, `/content`, `/blocks`, `/gallery`: browserveilige hulpfuncties
 - `/src/*`: expliciete bronmodule, inclusief afzonderlijke serverfuncties
 - `/styles/admin.css`: bestaande afgeschermde CMS-regels, zonder website-CSS
@@ -86,12 +87,32 @@ pakketmodules. Kopieer geen volledige root-route of stylesheet over een klant he
 Behoud in root/start de bestaande providers, publieke gegevens en auth-middleware.
 De publieke website-renderer blijft lokaal en gebruikt waar nodig CMS-modules.
 
+Integreer de bezoekersstatistieken expliciet in de **lokale** root: importeer
+`trackView` uit `@defero/smart-websites-cms/tracker` (of `@/cms/tracker` bij
+bronkopieën), lees `pathname` via `useRouterState` en gebruik
+`useEffect(() => { void trackView(pathname); }, [pathname])`. Alleen het pakket
+bijwerken voegt die hook niet toe. De tracker wacht de lazy RPC af, gebruikt bij
+geblokkeerde storage tijdelijke willekeurige IDs en sluit CMS-edit/preview uit.
+Geen nieuwe migratie nodig als `page_views`, `track_view` en `get_stats` al bestaan
+met de juiste grants. Test een normaal bezoek én ingelogd teruglezen;
+voorheen gemiste bezoeken zijn niet te reconstrueren.
+
 `integration/styles.reference.css` is uitsluitend een referentie voor de bestaande
 tokens en volgorde: nooit als volledige vervanging van een klantstylesheet.
 Integreer de CMS-regels expliciet, behoud lokale website-tokens en laat Tailwind
 ook de pakketbron scannen. Slider- en blokachtergrond-CSS blijven meegeleverd.
 
 ## Databasewijzigingen per uitgave
+
+### Update 3.1.1: bezoekersstatistieken
+De Master telt weer daadwerkelijk bezoeken. Controle: 164 CMS-tests,
+ingelogde rooktest op drie schermformaten en een afzonderlijke bezoekerssessie:
+vier paginaweergaven en één unieke bezoeker teruggelezen in Statistieken;
+CMS-edit/preview niet geteld en anonieme statistieken/records afgeschermd.
+Klantwebsites zijn niet gewijzigd. Neem bij de update zowel de tracker als de
+lokale root-hook mee; kopiëren van uitsluitend `src/cms/` is niet voldoende.
+De rooktest gebruikt nu de herstelde sandbox-aanmelding in plaats van een losse
+localStorage-sessie, zodat ook beheerde preview-aanmelding wordt meegenomen.
 
 `migrations/catalog.json` koppelt de exportversie aan de geordende SQL-bestanden
 en hun hashes. Het is een cumulatieve geschiedenis, geen automatisch uitvoerplan.

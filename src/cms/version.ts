@@ -2,9 +2,13 @@
 // security: true marks a release that every client site must install promptly (daily alert from the master).
 export type ChangelogEntry = { version: string; date: string; changes: string[]; security?: boolean };
 
-export const CMS_VERSION = '3.1.0';
+export const CMS_VERSION = '3.1.1';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.1.1', date: '2026-11-24',
+    changes: ['Bezoekersstatistieken versturen paginaweergaven daadwerkelijk; terugval bij geblokkeerde browseropslag en herhaalbare registratie na een mislukte aanvraag.', 'Bewerken en conceptvoorbeelden uitgesloten van de telling; installatie- en update-opdrachten nemen de statistiekenkoppeling expliciet mee.', 'Bezoekerstelling en ingelogd teruglezen getest; bestaande websites behouden hun eigen gegevens en moeten afzonderlijk worden bijgewerkt.'],
+  },
   {
     version: '3.1.0', date: '2026-11-24', security: true,
     changes: ['Centrale Defero-inlog: in de Master inloggen met Google en via Beheer direct als Administrator op iedere klantwebsite, zonder Google-configuratie per website.', 'Kortlevende (60 seconden), ondertekende en per website gerichte inlogbewijzen; alleen office@defero.nl en kars@defero.nl, na recente Google- of 2FA-inlog.', 'kars@defero.nl beschermd tegen verwijderen en rolwijziging; bestaande klantaccounts en wachtwoordinlog blijven ongewijzigd.'],

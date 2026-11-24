@@ -21,7 +21,7 @@ function Chart({ title, data, total }: { title: string; data: { day: string; v: 
       <div className="relative rounded-xl border border-border bg-card p-3">
         <span className="absolute right-4 top-4 rounded-md bg-muted px-2 py-0.5 text-xs">Totaal: {nf.format(total)}</span>
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
-          {ticks.map(t => <g key={t}><line x1={L} x2={W - 10} y1={y(t)} y2={y(t)} className="stroke-border" /><text x={L - 6} y={y(t) + 3} textAnchor="end" className="fill-muted-foreground text-[10px]">{Math.round(t)}</text></g>)}
+          {ticks.map((t, i) => <g key={i}><line x1={L} x2={W - 10} y1={y(t)} y2={y(t)} className="stroke-border" /><text x={L - 6} y={y(t) + 3} textAnchor="end" className="fill-muted-foreground text-[10px]">{Math.round(t)}</text></g>)}
           {data.map((d, i) => i % step === 0 && <g key={d.day}><line x1={x(i)} x2={x(i)} y1={T} y2={H - B} className="stroke-border" /><text transform={`translate(${x(i)},${H - B + 10}) rotate(-50)`} textAnchor="end" className="fill-muted-foreground text-[10px]">{+d.day.slice(8)} {MONTHS[+d.day.slice(5, 7) - 1]}</text></g>)}
           <polyline fill="none" strokeWidth={2} className="stroke-primary" points={data.map((d, i) => `${x(i)},${y(d.v)}`).join(' ')} />
         </svg>
@@ -50,8 +50,21 @@ export function StatsDialog({ onClose }: { onClose: () => void }) {
   const [s, setS] = useState<Stats | null>(null);
   const [err, setErr] = useState('');
   useEffect(() => {
+    let active = true;
     setS(null);
-    void supabase.rpc('get_stats', { _days: days }).then(({ data, error }) => { if (error) setErr('Statistieken konden niet worden geladen.'); else setS(data as unknown as Stats); });
+    setErr('');
+    const load = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_stats', { _days: days });
+        if (!active) return;
+        if (error || !data) setErr('Statistieken konden niet worden geladen.');
+        else setS(data as unknown as Stats);
+      } catch {
+        if (active) setErr('Statistieken konden niet worden geladen.');
+      }
+    };
+    void load();
+    return () => { active = false; };
   }, [days]);
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>

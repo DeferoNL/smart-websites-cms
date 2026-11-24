@@ -1,5 +1,5 @@
 {
-  "version": "3.0.2",
+  "version": "3.0.3",
   "format": "smart-websites-source-v1",
   "files": [
     {
@@ -8,11 +8,15 @@
     },
     {
       "file": "checks/src/cms/admin-security.test.ts",
-      "sha256": "e15b954958e1103fd370a27d4f3a561c46f64c4ee7c771d88e77868945383ecb"
+      "sha256": "bdfcc50abde9640a567e058fbf7dffe4537c6707448ed9f412b1c1204b46c42e"
     },
     {
       "file": "checks/src/cms/admin-styles.test.ts",
       "sha256": "14d8ff912af12aec8b14dc782be9f1f2e7099f6426405ddce135ec059c0fb4c8"
+    },
+    {
+      "file": "checks/src/cms/auth-email.test.ts",
+      "sha256": "1dc90ac8b5f4d3e8f66dfe7151ed2b1610957c5da39e8a92c50271a43b5d2869"
     },
     {
       "file": "checks/src/cms/block-background.test.ts",
@@ -57,6 +61,10 @@
     {
       "file": "checks/src/cms/package-release.test.ts",
       "sha256": "31f5f6472fc4285af8ae2ce923003f8c39a55e71d3fa83d2165339a72dd1db7a"
+    },
+    {
+      "file": "checks/src/cms/password-session.test.ts",
+      "sha256": "1ee9bbdc77e72d529c029c563ace43ad335b82aa56f79d3634a0b8e7b2db9f1d"
     },
     {
       "file": "checks/src/cms/preview-access.test.ts",
@@ -188,15 +196,15 @@
     },
     {
       "file": "migrations/catalog.json",
-      "sha256": "b2e285dcb6039dc7252266ce7152da54a9d7b4da70639c0493ec2d9a75c8a4b4"
+      "sha256": "3a70b305076450bd1766b260b66705d191e7cba8e2498433493865a71c69fc82"
     },
     {
       "file": "package.json",
-      "sha256": "e08487df99719c6bc6d0d2f14316ea319582c6cd8e9c9c7234818a9f5ebf5733"
+      "sha256": "539f02bc09c49ed39ab3e6f22c4e9cada3dc6afb2202bb89a87dad806b1864cc"
     },
     {
       "file": "README.md",
-      "sha256": "b1960e7ed1ff8bddb85504db5222bf8823c5d58e8e5aaea48befcb71bc1ba5a5"
+      "sha256": "fccb3a25613ffe506dd8139887fa7bb756835044bd06b741b4cf234c96b849e1"
     },
     {
       "file": "src/cms/AccountMenu.tsx",
@@ -299,6 +307,10 @@
       "sha256": "b7a2a5a33f76bebb080ae744042f1b2a55a8e19d0625c318898d2c4b89ae1420"
     },
     {
+      "file": "src/cms/password-session.ts",
+      "sha256": "9b197f83b545f2de7338bec9dfaa8f9394bf016563dcea3653bdd0a0ec385189"
+    },
+    {
       "file": "src/cms/preview-access.ts",
       "sha256": "e29c18f0c46db0be99c3d48443cecc4d06e0865ba94b11bd1698196bbd8de4d4"
     },
@@ -388,7 +400,7 @@
     },
     {
       "file": "src/cms/version.ts",
-      "sha256": "377d7895990564b7d23703c62a36ab6ffdf9ded063b7a1477df9d7393457d5c7"
+      "sha256": "c79a409aed3f19dc71f4a33717b83974113185cfddd58824690052f97d817ea5"
     },
     {
       "file": "src/components/ui/button.tsx",
@@ -508,7 +520,7 @@
     },
     {
       "file": "templates/src/routes/reset-password.tsx",
-      "sha256": "72e636d09792b3e0d33a5f235b66f915462b89de4291953a5cb1f5aa02455405"
+      "sha256": "7d4bb5d491aa80f5a443cfb8b52d6044315352866b35020ebdd414f1b7f0a1ab"
     },
     {
       "file": "templates/src/routes/smart-websites_.sites.tsx",

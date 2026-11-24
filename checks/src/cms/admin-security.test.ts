@@ -15,12 +15,12 @@ vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: {
 } }));
 vi.mock('../lib/cms.functions', () => ({ publicClient: () => ({ rpc: mocks.rpc }) }));
 import { requestCmsSetup } from '../lib/setup.functions';
-import { removeUser, setUserRole } from '../lib/users.functions';
+import { inviteUser, removeUser, setUserRole } from '../lib/users.functions';
 
 // Test actual handler bodies while replacing only the framework and remote services.
 type Handler = (args: { data?: unknown; context?: unknown }) => Promise<unknown>;
 const run = (fn: unknown, args: Parameters<Handler>[0] = {}) => (fn as Handler)(args);
-const context = { userId: 'acting-admin', supabase: { rpc: vi.fn().mockResolvedValue({ data: true, error: null }) } };
+const context = { userId: 'acting-admin', supabase: { rpc: vi.fn().mockResolvedValue({ data: true, error: null }), from: mocks.from } };
 
 describe('administrator server guards', () => {
   beforeEach(() => {
@@ -63,5 +63,30 @@ describe('administrator server guards', () => {
     mocks.target.mockResolvedValue({ data: { user: null }, error: new Error('unavailable') });
     await expect(run(removeUser, { data: { userId: 'reserved' }, context })).rejects.toThrow();
     expect(mocks.remove).not.toHaveBeenCalled();
+  });
+  it.each([
+    { role: 'admin', cmsRoleId: null },
+    { role: 'editor', cmsRoleId: 'basic-profile' },
+  ])('assigns exactly the selected invitation role: $role', async assignment => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const deleteEq = vi.fn().mockResolvedValue({ error: null });
+    mocks.from.mockImplementation(() => ({
+      select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: { id: 'basic-profile' }, error: null }) }) }),
+      delete: () => ({ eq: deleteEq }), insert,
+    }));
+    mocks.invite.mockResolvedValue({ data: { user: { id: 'new-user' } }, error: null });
+    await expect(run(inviteUser, { data: { email: 'invited@example.nl', origin: 'https://oldskool.example.nl', ...assignment }, context })).resolves.toEqual({ ok: true });
+    expect(mocks.invite).toHaveBeenCalledWith('invited@example.nl', { redirectTo: 'https://oldskool.example.nl/reset-password' });
+    expect(deleteEq).toHaveBeenCalledWith('user_id', 'new-user');
+    expect(insert).toHaveBeenCalledExactlyOnceWith({ user_id: 'new-user', role: assignment.role, cms_role_id: assignment.cmsRoleId });
+  });
+  it('does not allow an editor to invite users even with delegated profile permissions', async () => {
+    const editor = { userId: 'editor', supabase: { rpc: vi.fn().mockResolvedValue({ data: false, error: null }) } };
+    await expect(run(inviteUser, { data: { email: 'invited@example.nl', role: 'admin', origin: 'https://oldskool.example.nl', cmsRoleId: null }, context: editor })).rejects.toThrow(/Alleen Administrator/);
+    expect(mocks.invite).not.toHaveBeenCalled();
+  });
+  it('rejects invitations with a missing editor profile before sending email', async () => {
+    await expect(run(inviteUser, { data: { email: 'invited@example.nl', role: 'editor', origin: 'https://oldskool.example.nl', cmsRoleId: null }, context })).rejects.toThrow(/Kies een rol/);
+    expect(mocks.invite).not.toHaveBeenCalled();
   });
 });

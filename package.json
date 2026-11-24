@@ -1,6 +1,6 @@
 {
   "name": "@defero/smart-websites-cms",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "private": true,
   "type": "module",
   "description": "SMART Websites CMS source distribution for TanStack Start",

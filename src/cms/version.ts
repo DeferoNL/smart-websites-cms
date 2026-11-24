@@ -2,9 +2,13 @@
 // security: true marks a release that every client site must install promptly (daily alert from the master).
 export type ChangelogEntry = { version: string; date: string; changes: string[]; security?: boolean };
 
-export const CMS_VERSION = '3.0.2';
+export const CMS_VERSION = '3.0.3';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '3.0.3', date: '2026-11-24',
+    changes: ['Uitnodigings- en herstellinks wachten op geverifieerde authenticatie; ondersteuning voor code, token-hash en bestaande uitnodigingssessies.', 'Verlopen of gebruikte links tonen een duidelijke melding zonder wachtwoordformulier; na opslaan direct naar het beheer.', 'Gekozen uitnodigingsrechten, eigen mailidentiteit, vaste beheerder en 2FA-beveiliging behouden en automatisch gecontroleerd.'],
+  },
   {
     version: '3.0.2', date: '2026-11-17', security: true,
     changes: ['CMS-pakket gebruikt de eigen geverifieerde e-mailafzender van iedere website; afzendernaam blijft SMART Websites.', 'Vaste beheerder beschermd tegen verwijderen en rolwijzigingen; gereserveerde installatie, tien minuten wachttijd en bestaande installatielatch behouden.', 'Ondersteuning voor bestaande openbare websitefunctie zonder databasewijziging; uitsluitingen en toegangsbeveiliging behouden.'],

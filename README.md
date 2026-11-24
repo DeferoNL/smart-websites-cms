@@ -62,6 +62,23 @@ de terugval; toegangsfouten niet. De bestaande uitsluitingsvelden blijven intact
 Er wordt geen functie aangemaakt: als beide ontbreken, eerst goedkeuring vragen.
 Gewoon wachtwoordherstel voor andere uitgenodigde gebruikers blijft beschikbaar.
 
+### Update 3.0.3: uitnodigingen en wachtwoordherstel
+
+Integreer bij iedere klant óók `templates/src/routes/reset-password.tsx`; alleen
+het pakketversienummer wijzigen vernieuwt een eerder gekopieerd routesjabloon niet.
+De pagina gebruikt de gedeelde `password-session`-helper, wacht op geverifieerde
+authenticatie en ondersteunt PKCE, token-hash en uitnodigings-/herstelhashes.
+Behoud de lokale mail-webhook, geverifieerde afzender en rechten/databaseguards.
+Voor deze uitgave zijn geen nieuwe migraties nodig.
+
+Mastercontrole: 133 tests, ingelogde CMS-rooktest, ongeldige links op drie
+schermformaten en een echte herstellink voor een tijdelijk account: Opslaan,
+doorsturen naar beheer en opnieuw inloggen met het nieuwe wachtwoord geslaagd.
+Uitnodigingsroltoekenning en auth-mailhandoff zijn afzonderlijk met vervangen
+externe diensten getest; dit bewijst geen bezorging bij Oldskool Outdoor.
+Test daar na installatie een verse uitnodiging én herstellink, de gekozen rol,
+SMART Websites als afzender, projectreferentie en het eigen terugkeeradres.
+
 De dashboard- en HTTP-pagina's staan als **installatiesjablonen** in `templates/`.
 TanStack Router moet deze in de routes van de klant genereren; een route is niet
 zomaar een gewone bibliotheekcomponent. De sjablonen verwijzen al naar de gedeelde

@@ -172,3 +172,7 @@ Een latere uitrolstraat moet per klant een versie-update, tests, gecontroleerde
 migraties en een publicatie regelen, met een pilot en terugvalmogelijkheid.
 Lovable Git-sync past migraties niet toe en publiceert websites niet automatisch.
 De websites blijven ook met zo'n uitrol gescheiden, met eigen inhoud en accounts.
+## 3.1.0 – Centrale Defero-inlog
+- Klantwebsites hebben de Lovable-inlogmodule nodig (`@/integrations/lovable/index`, eenmalig Google-inlog inschakelen) en `src/lib/sso.functions.ts`.
+- De Master bewaart de privésleutel als geheim `CMS_SSO_SIGNING_KEY`; klantwebsites vertrouwen alleen de publieke sleutel in `CMS_CONFIG.ssoPublicKey`.
+- Een inlogbewijs is 60 seconden geldig en alleen voor het adres waarvoor het is uitgegeven.

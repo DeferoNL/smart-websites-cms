@@ -16,6 +16,9 @@ import { WandSparkles, Loader2 } from 'lucide-react';
 import { listUsers, inviteUser, setUserRole, removeUser } from '@defero/smart-websites-cms/src/lib/users.functions.ts';
 import { getCmsSetup, requestCmsSetup } from '@defero/smart-websites-cms/src/lib/setup.functions.ts';
 import { checkMfaReminder } from '@defero/smart-websites-cms/src/lib/mfa-reminder.functions.ts';
+import { claimMasterSuperadmin, redeemSiteTicket } from '@defero/smart-websites-cms/src/lib/sso.functions.ts';
+import { lovable } from '@/integrations/lovable/index';
+import { CMS_CONFIG } from '@defero/smart-websites-cms/src/cms/config.ts';
 import { Button } from '@defero/smart-websites-cms/src/components/ui/button.tsx';
 import { Input } from '@defero/smart-websites-cms/src/components/ui/input.tsx';
 import { Label } from '@defero/smart-websites-cms/src/components/ui/label.tsx';
@@ -69,6 +72,11 @@ function Dashboard() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [mfaPending, setMfaPending] = useState<boolean | null>(null);
   useEffect(() => { if (!session) { setMfaPending(null); return; } void needsMfa().then(setMfaPending); }, [session]);
+  const claimSuperadmin = useServerFn(claimMasterSuperadmin);
+  useEffect(() => {
+    if (!session || !(CMS_CONFIG.masterHosts as readonly string[]).includes(window.location.host)) return;
+    void claimSuperadmin().then(r => { if (r.granted) window.location.reload(); }).catch(() => undefined);
+  }, [session?.user.id, claimSuperadmin]);
   const [tab, setTab] = useState('pages');
   const [publishing, setPublishing] = useState(false);
   const siteDomain = useSiteDomain();
@@ -242,6 +250,31 @@ function Login() {
     catch (error) { toast.error(error instanceof Error ? error.message : 'Installatie aanvragen mislukt.'); }
     finally { setBusy(false); }
   };
+  const redeem = useServerFn(redeemSiteTicket);
+  const [isMaster, setIsMaster] = useState(false);
+  const [ssoBusy, setSsoBusy] = useState(false);
+  useEffect(() => {
+    setIsMaster((CMS_CONFIG.masterHosts as readonly string[]).includes(window.location.host));
+    const url = new URL(window.location.href);
+    const ticket = url.searchParams.get('sso');
+    if (!ticket) return;
+    url.searchParams.delete('sso');
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    setSsoBusy(true);
+    void (async () => {
+      try {
+        const { tokenHash } = await redeem({ data: { ticket } });
+        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' });
+        if (error) throw error;
+      } catch (e) { toast.error(e instanceof Error ? e.message : 'Centraal inloggen mislukt.'); }
+      finally { setSsoBusy(false); }
+    })();
+  }, [redeem]);
+  const google = async () => {
+    setBusy(true);
+    const result = await lovable.auth.signInWithOAuth('google', { redirect_uri: `${window.location.origin}/smart-websites` });
+    if (result.error) { toast.error('Inloggen met Google mislukt.'); setBusy(false); }
+  };
   const [mode, setMode] = useState<'in' | 'forgot'>('in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -264,6 +297,15 @@ function Login() {
         {setupAvailable && <div className="space-y-3 border-b border-border pb-5"><h2 className="font-semibold">Eerste beheerder instellen</h2><Button type="button" variant="brand" disabled={busy} onClick={() => void startSetup()} className="w-full">Beveiligde uitnodiging aanvragen</Button></div>}
         {setupSent && <p role="status" className="text-sm text-muted-foreground">De uitnodiging is verstuurd naar het vooraf vastgelegde beheerdersadres. Open de e-mail om je wachtwoord in te stellen.</p>}
         <h1 className="text-center text-lg font-semibold">{mode === 'in' ? 'Inloggen' : 'Wachtwoord vergeten'}</h1>
+        {ssoBusy && <p role="status" className="text-center text-sm text-muted-foreground">Centraal inloggen wordt gecontroleerd…</p>}
+        {mode === 'in' && (isMaster ? (
+          <button type="button" disabled={busy} onClick={() => void google()} className="flex w-full items-center justify-center gap-[10px] rounded-md border border-[#747775] bg-[#FFFFFF] px-3 py-[10px] text-sm font-medium text-[#1F1F1F] disabled:opacity-60">
+            <svg aria-hidden="true" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
+            Inloggen met Google
+          </button>
+        ) : (
+          <a href={`${CMS_CONFIG.masterUrl}/smart-websites/sites`} className="block text-center text-sm text-muted-foreground underline">Defero-beheerder? Inloggen via de Master</a>
+        ))}
         <div className="space-y-1"><Label htmlFor="email">E-mail</Label><Input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
         {mode === 'in' && <div className="space-y-1"><Label htmlFor="pw">Wachtwoord</Label><Input id="pw" type="password" required value={password} onChange={e => setPassword(e.target.value)} /></div>}
         <Button type="submit" disabled={busy} className="w-full">{mode === 'in' ? 'Inloggen' : 'Stuur link'}</Button>

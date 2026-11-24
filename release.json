@@ -1,5 +1,5 @@
 {
-  "version": "3.0.3",
+  "version": "3.1.0",
   "format": "smart-websites-source-v1",
   "files": [
     {
@@ -95,6 +95,10 @@
       "sha256": "7485bd895b7dc32eb71a728608d5329367e24e2eeeb91a0fc2a84f88fad0c79a"
     },
     {
+      "file": "checks/src/cms/sso.test.ts",
+      "sha256": "5f0b730f8964307af5fa94e050073962cbb08deced64e254b61e830a09b41bf7"
+    },
+    {
       "file": "checks/src/cms/theme.test.ts",
       "sha256": "76c3d1d84a9fcdfb0bb86e6e74623d72cf1d9d3bb1abe66f21563d3ddb3c7ff5"
     },
@@ -104,7 +108,7 @@
     },
     {
       "file": "integration/host-contract.json",
-      "sha256": "66e7b44c39b19eda124e64e37bb835bc32b1fd8e54772ac3d983b50a49c75ab3"
+      "sha256": "2f31104faf13f678b510c71a26f6c97967b5b286fe01c4f3ccc468557f516418"
     },
     {
       "file": "integration/styles.reference.css",
@@ -196,15 +200,15 @@
     },
     {
       "file": "migrations/catalog.json",
-      "sha256": "3a70b305076450bd1766b260b66705d191e7cba8e2498433493865a71c69fc82"
+      "sha256": "d47d5ebddad1db5379ca5ee6eaeab074fb4ae4940d5df12576209aeb3a913654"
     },
     {
       "file": "package.json",
-      "sha256": "539f02bc09c49ed39ab3e6f22c4e9cada3dc6afb2202bb89a87dad806b1864cc"
+      "sha256": "60e7b7f8779e8b2a3f27d41ccfe77ea3a52c0fdcc22781c1e4e2742f324b80a3"
     },
     {
       "file": "README.md",
-      "sha256": "fccb3a25613ffe506dd8139887fa7bb756835044bd06b741b4cf234c96b849e1"
+      "sha256": "92b864321a48def1c70a772a944ec10196b246228076b66d9b5cab8c736bd7e1"
     },
     {
       "file": "src/cms/AccountMenu.tsx",
@@ -240,7 +244,7 @@
     },
     {
       "file": "src/cms/config.ts",
-      "sha256": "1b025a157616179da4c661d398266362fe545392d65311f429b5a7f66208af33"
+      "sha256": "6a6058207ada781ae3b5cb944bf9df38b1919222ac9c828f7cc50ad77cb92910"
     },
     {
       "file": "src/cms/content.ts",
@@ -336,7 +340,7 @@
     },
     {
       "file": "src/cms/setup-policy.ts",
-      "sha256": "162a90c8a981a4cfd21fde84f62ef901138aeab2197e0c508932d4929c2ad998"
+      "sha256": "91ed1274fb785d3cfd979cba83fd329ad666ae6dd6f6524e20815df9a1e1241d"
     },
     {
       "file": "src/cms/site-address.ts",
@@ -361,6 +365,10 @@
     {
       "file": "src/cms/slider.css",
       "sha256": "1382744a220ee35427e3d64888343869fb3e67c34c436969ee11e4f45f7ad73f"
+    },
+    {
+      "file": "src/cms/sso.ts",
+      "sha256": "5176b8ee133008b5300ecdeac8a2b48a16f3249249f8f3459e90c4a265c33b40"
     },
     {
       "file": "src/cms/starter-blocks.ts",
@@ -400,7 +408,7 @@
     },
     {
       "file": "src/cms/version.ts",
-      "sha256": "c79a409aed3f19dc71f4a33717b83974113185cfddd58824690052f97d817ea5"
+      "sha256": "35539d736f7fd99af35a809bb638777be19642ade3bfba2078799ac34052babc"
     },
     {
       "file": "src/components/ui/button.tsx",
@@ -483,6 +491,10 @@
       "sha256": "bc70de15a0bbf49a6e01977a50acd28af3d0ccecb0b3657a2d0d20ad12a32982"
     },
     {
+      "file": "src/lib/sso.functions.ts",
+      "sha256": "0f7aac5b7ab9ae6685da1488ed8023a10d77c1df668d054ad5e29c8e9664173b"
+    },
+    {
       "file": "src/lib/text-ai.functions.ts",
       "sha256": "a58d7e1bd353ce2358a91b56792857ee2e0021eeaf9542eca93a661fbcaf336e"
     },
@@ -524,11 +536,11 @@
     },
     {
       "file": "templates/src/routes/smart-websites_.sites.tsx",
-      "sha256": "314bbd76639139e12127989b3b9bd5f8e6914f3a049164b914e3c3975fb19869"
+      "sha256": "5f2597fd48701032a29fa630e0648bfca2ef990413b59a148dd28eed05c76d09"
     },
     {
       "file": "templates/src/routes/smart-websites.tsx",
-      "sha256": "a0eee54bda5184c0c4ca6f7326353403ec9805ba3dc6f4112a0cc1954e3aa0d0"
+      "sha256": "41ffb87ac7b3d55fff0fba25dcfcdb9651bedf0b2e1de2da66a10a50837e1663"
     }
   ]
 }

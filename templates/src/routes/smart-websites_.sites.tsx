@@ -8,6 +8,9 @@ import { CMS_VERSION, CHANGELOG, latestSecurityVersion } from '@defero/smart-web
 import { siteStatus, statsSchema, type SiteStatus, type SiteStats } from '@defero/smart-websites-cms/src/cms/site-report.ts';
 import { updatePrompt } from '@defero/smart-websites-cms/src/cms/update-prompt.ts';
 import { needsMfa } from '@defero/smart-websites-cms/src/cms/TwoFactor.tsx';
+import { useServerFn } from '@tanstack/react-start';
+import { toast } from 'sonner';
+import { issueSiteTicket } from '@defero/smart-websites-cms/src/lib/sso.functions.ts';
 
 export const Route = createFileRoute('/smart-websites_/sites')({
   ssr: false,
@@ -36,6 +39,14 @@ function SitesOverview() {
   const [filter, setFilter] = useState<SiteStatus | 'all'>('all');
   const [copied, setCopied] = useState(false);
   const sec = latestSecurityVersion(CHANGELOG);
+  const issue = useServerFn(issueSiteTicket);
+  const manage = async (host: string) => {
+    const tab = window.open('about:blank', '_blank');
+    try {
+      const { url } = await issue({ data: { host } });
+      if (tab) tab.location.href = url; else window.location.href = url;
+    } catch (e) { tab?.close(); toast.error(e instanceof Error ? e.message : 'Centraal inloggen mislukt.'); }
+  };
 
   const load = async () => {
     setState('loading');
@@ -105,9 +116,8 @@ function SitesOverview() {
                           <p className="font-medium">{r.site_name || r.host}</p>
                           <div className="flex flex-wrap items-center gap-2">
                             <a href={`https://${r.host}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">{r.host}<ExternalLink className="h-3 w-3" /></a>
-                            <Button variant="outline" size="sm" asChild>
-                              <a href={`https://${r.host}/smart-websites`} target="_blank" rel="noopener noreferrer" aria-label={`CMS van ${r.site_name || r.host}`}><Settings className="h-3 w-3" />CMS</a>
-                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => void manage(r.host)} aria-label={`Beheer ${r.site_name || r.host} als Defero-beheerder`}><Settings className="h-3 w-3" />Beheer</Button>
+                            <a href={`https://${r.host}/smart-websites`} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground underline">inlogscherm</a>
                           </div>
                         </td>
                         <td className="px-3 py-2 font-medium">{r.version}</td>

@@ -2,6 +2,7 @@
   "sourceDistribution": true,
   "hostImports": [
     "@/assets/smart-websites-logo.svg.asset.json",
+    "@/integrations/lovable/index",
     "@/integrations/supabase/auth-middleware",
     "@/integrations/supabase/client",
     "@/integrations/supabase/client.server",
